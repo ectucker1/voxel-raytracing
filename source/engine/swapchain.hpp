@@ -9,8 +9,8 @@ class Swapchain {
 public:
     vk::SwapchainKHR swapchain;
     vk::Format imageFormat;
-    std::vector<VkImage> images;
-    std::vector<VkImageView> imageViews;
+    std::vector<vk::Image> images;
+    std::vector<vk::ImageView> imageViews;
 
 public:
     void init(

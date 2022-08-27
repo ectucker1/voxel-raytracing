@@ -17,8 +17,16 @@ void Swapchain::init(const vk::PhysicalDevice& physicalDevice, const vk::Device&
 
     swapchain = vkbSwapchain.swapchain;
     imageFormat = vk::Format(vkbSwapchain.image_format);
-    images = vkbSwapchain.get_images().value();
-    imageViews = vkbSwapchain.get_image_views().value();
+    auto resultImages = vkbSwapchain.get_images().value();
+    images = std::vector<vk::Image>(resultImages.size());
+    for (int i = 0; i < resultImages.size(); i++) {
+        images[i] = resultImages[i];
+    }
+    auto resultImageViews = vkbSwapchain.get_image_views().value();
+    imageViews = std::vector<vk::ImageView>(resultImageViews.size());
+    for (int i = 0; i < resultImageViews.size(); i++) {
+        imageViews[i] = resultImageViews[i];
+    }
 }
 
 void Swapchain::destroy(const vk::Device& logicalDevice) {
