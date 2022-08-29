@@ -1,14 +1,20 @@
 #pragma once
 
+#include <memory>
+#include <functional>
 #include <vulkan/vulkan.hpp>
+#include <glm/glm.hpp>
 #include "swapchain.hpp"
 
 class GLFWwindow;
 
 // A wrapper that creates all the vulkan objects that other components can depend on.
-class Engine {
+class Engine
+    : std::enable_shared_from_this<Engine>
+{
 public:
     GLFWwindow* window;
+    glm::uvec2 windowSize = { 1280, 720 };
 
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugMessenger;
@@ -34,12 +40,14 @@ public:
     vk::Semaphore renderSemaphore;
     vk::Fence renderFence;
 
+    vk::Pipeline graphicsPipeline;
+
 private:
     bool _initialized;
     uint32_t _frameCount;
 
 public:
-    void init();
+    void init(const std::function<vk::Pipeline()>& buildPipeline);
     void run();
     void destroy();
 

@@ -2,14 +2,21 @@
 
 #include <iostream>
 #include "engine/engine.hpp"
+#include "demo/triangle_pipeline.hpp"
 
 int run() {
-    Engine engine;
+    std::shared_ptr<Engine> engine = std::make_shared<Engine>();
 
     try {
-        engine.init();
-        engine.run();
-        engine.destroy();
+        auto buildPipeline = [&]()
+        {
+            TrianglePipelineBuilder pipeline(engine);
+            return pipeline.build(engine->renderPass);
+        };
+
+        engine->init(buildPipeline);
+        engine->run();
+        engine->destroy();
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;

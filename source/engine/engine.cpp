@@ -6,16 +6,14 @@
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
-#define INIT_WINDOW_WIDTH 1280
-#define INIT_WINDOW_HEIGHT 720
-
-void Engine::init() {
+void Engine::init(const std::function<vk::Pipeline()>& buildPipeline) {
     initGLFW();
     initVulkan();
     initCommands();
     initDefaultRenderpass();
     initFramebuffers();
     initSyncStructures();
+    graphicsPipeline = buildPipeline();
 
     _initialized = true;
 }
@@ -60,11 +58,15 @@ void Engine::draw() {
     renderpassInfo.renderPass = renderPass;
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.offset = 0;
-    renderpassInfo.renderArea.extent = vk::Extent2D(INIT_WINDOW_WIDTH, INIT_WINDOW_HEIGHT);
+    renderpassInfo.renderArea.extent = vk::Extent2D(windowSize.x, windowSize.y);
     renderpassInfo.framebuffer = framebuffers[imageIndex];
     renderpassInfo.clearValueCount = 1;
     renderpassInfo.pClearValues = &clearValue;
     mainCommandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
+
+    // Draw
+    mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+    mainCommandBuffer.draw(3, 1, 0, 0);
 
     // End main renderpass
     mainCommandBuffer.endRenderPass();
@@ -125,7 +127,7 @@ void Engine::initGLFW() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    window = glfwCreateWindow(INIT_WINDOW_WIDTH, INIT_WINDOW_HEIGHT, "Voxel Engine", nullptr, nullptr);
+    window = glfwCreateWindow(windowSize.x, windowSize.y, "Voxel Engine", nullptr, nullptr);
 }
 
 void Engine::initVulkan() {
@@ -185,7 +187,7 @@ void Engine::initVulkan() {
     graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 
     // Create swapchain
-    swapchain.init(physicalDevice, logicalDevice, surface, INIT_WINDOW_WIDTH, INIT_WINDOW_HEIGHT);
+    swapchain.init(physicalDevice, logicalDevice, surface, windowSize.x, windowSize.y);
 }
 
 void Engine::initCommands() {
@@ -229,8 +231,8 @@ void Engine::initFramebuffers() {
     vk::FramebufferCreateInfo framebufferInfo;
     framebufferInfo.renderPass = renderPass;
     framebufferInfo.attachmentCount = 1;
-    framebufferInfo.width = INIT_WINDOW_WIDTH;
-    framebufferInfo.height = INIT_WINDOW_HEIGHT;
+    framebufferInfo.width = windowSize.x;
+    framebufferInfo.height = windowSize.y;
     framebufferInfo.layers = 1;
 
     size_t imageCount = swapchain.images.size();

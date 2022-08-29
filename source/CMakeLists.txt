@@ -4,16 +4,18 @@
 find_package(VulkanHeaders CONFIG)
 find_package(vk-bootstrap CONFIG)
 find_package(glfw3 CONFIG)
-find_package(fmt)
+find_package(fmt CONFIG)
+find_package(glm CONFIG)
 
 # Glob for source files
-file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 # Add library target out of source files
 add_library(voxels_lib STATIC ${LIB_SOURCES})
 
 # Include headers as interface
 target_include_directories(voxels_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(voxels_lib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Link to external libraries
 target_link_libraries(voxels_lib
@@ -21,6 +23,7 @@ target_link_libraries(voxels_lib
     vk-bootstrap::vk-bootstrap
     glfw
     fmt::fmt
+    glm::glm
 )
 
 # Define library include options
