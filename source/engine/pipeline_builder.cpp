@@ -10,6 +10,7 @@ PipelineStorage APipelineBuilder::build(const vk::RenderPass& pass)
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = buildShaderStages();
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo = buildVertexInputInfo();
     vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo = buildInputAssembly();
+    vk::PipelineDynamicStateCreateInfo dynamicStateInfo = buildDynamicState();
     vk::PipelineViewportStateCreateInfo viewportInfo = buildViewport();
     vk::PipelineRasterizationStateCreateInfo rasterizationInfo = buildRasterizer();
     vk::PipelineMultisampleStateCreateInfo multisamplingInfo = buildMultisampling();
@@ -24,6 +25,7 @@ PipelineStorage APipelineBuilder::build(const vk::RenderPass& pass)
     pipelineInfo.pStages = shaderStages.data();
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+    pipelineInfo.pDynamicState = &dynamicStateInfo;
     pipelineInfo.pViewportState = &viewportInfo;
     pipelineInfo.pRasterizationState = &rasterizationInfo;
     pipelineInfo.pMultisampleState = &multisamplingInfo;
@@ -45,25 +47,22 @@ PipelineStorage APipelineBuilder::build(const vk::RenderPass& pass)
     };
 }
 
+vk::PipelineDynamicStateCreateInfo APipelineBuilder::buildDynamicState()
+{
+    // Use viewport and scissor as dynamic states so we can resize the window
+    _dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+
+    vk::PipelineDynamicStateCreateInfo dynamicStateInfo;
+    dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(_dynamicStates.size());
+    dynamicStateInfo.pDynamicStates = _dynamicStates.data();
+    return dynamicStateInfo;
+}
+
 vk::PipelineViewportStateCreateInfo APipelineBuilder::buildViewport()
 {
-    _viewport = vk::Viewport();
-    _viewport.x = 0.0f;
-    _viewport.y = 0.0f;
-    _viewport.width = static_cast<float>(_engine->windowSize.x);
-    _viewport.height = static_cast<float>(_engine->windowSize.y);
-    _viewport.minDepth = 0.0f;
-    _viewport.maxDepth = 1.0f;
-    
-    _scissor = vk::Rect2D();
-    _scissor.offset = vk::Offset2D(0, 0);
-    _scissor.extent = vk::Extent2D(_engine->windowSize.x, _engine->windowSize.y);
-
     vk::PipelineViewportStateCreateInfo viewportInfo;
     viewportInfo.viewportCount = 1;
-    viewportInfo.pViewports = &_viewport;
     viewportInfo.scissorCount = 1;
-    viewportInfo.pScissors = &_scissor;
 
     return viewportInfo;
 }

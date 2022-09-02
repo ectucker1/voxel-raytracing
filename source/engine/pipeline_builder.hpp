@@ -17,8 +17,7 @@ protected:
 
     DeletionQueue pipelineDeletionQueue;
 
-    vk::Viewport _viewport;
-    vk::Rect2D _scissor;
+    std::vector<vk::DynamicState> _dynamicStates;
     vk::PipelineColorBlendAttachmentState _colorBlendAttachment;
 
 public:
@@ -29,6 +28,7 @@ protected:
     virtual std::vector<vk::PipelineShaderStageCreateInfo> buildShaderStages() = 0;
     virtual vk::PipelineVertexInputStateCreateInfo buildVertexInputInfo() = 0;
     virtual vk::PipelineInputAssemblyStateCreateInfo buildInputAssembly() = 0;
+    virtual vk::PipelineDynamicStateCreateInfo buildDynamicState();
     virtual vk::PipelineViewportStateCreateInfo buildViewport();
     virtual vk::PipelineRasterizationStateCreateInfo buildRasterizer();
     virtual vk::PipelineColorBlendStateCreateInfo buildColorBlendAttachment();

@@ -12,11 +12,12 @@ class GLFWwindow;
 
 // A wrapper that creates all the vulkan objects that other components can depend on.
 class Engine
-    : std::enable_shared_from_this<Engine>
+    : public std::enable_shared_from_this<Engine>
 {
 public:
     GLFWwindow* window;
     glm::uvec2 windowSize = { 1280, 720 };
+    bool windowResized = false;
 
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugMessenger;
@@ -38,12 +39,6 @@ public:
 
     vk::RenderPass renderPass;
 
-    std::vector<vk::Framebuffer> framebuffers;
-
-    vk::Semaphore presentSemaphore;
-    vk::Semaphore renderSemaphore;
-    vk::Fence renderFence;
-
     PipelineStorage graphicsPipeline;
 
 private:
@@ -62,6 +57,4 @@ private:
     void initVulkan();
     void initCommands();
     void initDefaultRenderpass();
-    void initFramebuffers();
-    void initSyncStructures();
 };
