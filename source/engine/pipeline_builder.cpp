@@ -4,7 +4,7 @@
 
 APipelineBuilder::APipelineBuilder(const std::shared_ptr<Engine>& engine) : _engine(engine) {}
 
-vk::Pipeline APipelineBuilder::build(const vk::RenderPass& pass)
+PipelineStorage APipelineBuilder::build(const vk::RenderPass& pass)
 {
     // Create prerequisite pipeline infos
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = buildShaderStages();
@@ -36,7 +36,13 @@ vk::Pipeline APipelineBuilder::build(const vk::RenderPass& pass)
     auto pipelineResult = _engine->logicalDevice.createGraphicsPipeline(VK_NULL_HANDLE, pipelineInfo);
     vk::resultCheck(pipelineResult.result, "Error creating graphics pipeline");
 
-    return pipelineResult.value;
+    pipelineDeletionQueue.destroy_all();
+
+    return
+    {
+        layout,
+        pipelineResult.value
+    };
 }
 
 vk::PipelineViewportStateCreateInfo APipelineBuilder::buildViewport()

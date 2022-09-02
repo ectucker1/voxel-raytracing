@@ -3,6 +3,8 @@
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include "engine/deletion_queue.hpp"
+#include "engine/pipeline_storage.hpp"
 
 class Engine;
 
@@ -13,13 +15,15 @@ class APipelineBuilder
 protected:
     std::shared_ptr<Engine> _engine;
 
+    DeletionQueue pipelineDeletionQueue;
+
     vk::Viewport _viewport;
     vk::Rect2D _scissor;
     vk::PipelineColorBlendAttachmentState _colorBlendAttachment;
 
 public:
     APipelineBuilder(const std::shared_ptr<Engine>& engine);
-    vk::Pipeline build(const vk::RenderPass& pass);
+    PipelineStorage build(const vk::RenderPass& pass);
 
 protected:
     virtual std::vector<vk::PipelineShaderStageCreateInfo> buildShaderStages() = 0;

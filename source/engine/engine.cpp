@@ -6,7 +6,7 @@
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
-void Engine::init(const std::function<vk::Pipeline()>& buildPipeline) {
+void Engine::init(const std::function<PipelineStorage()>& buildPipeline) {
     initGLFW();
     initVulkan();
     initCommands();
@@ -14,6 +14,10 @@ void Engine::init(const std::function<vk::Pipeline()>& buildPipeline) {
     initFramebuffers();
     initSyncStructures();
     graphicsPipeline = buildPipeline();
+    mainDeletionQueue.push_group([&]() {
+        logicalDevice.destroy(graphicsPipeline.layout);
+        logicalDevice.destroy(graphicsPipeline.pipeline);
+    });
 
     _initialized = true;
 }
@@ -65,7 +69,7 @@ void Engine::draw() {
     mainCommandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
 
     // Draw
-    mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+    mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline.pipeline);
     mainCommandBuffer.draw(3, 1, 0, 0);
 
     // End main renderpass
@@ -101,24 +105,10 @@ void Engine::draw() {
 }
 
 void Engine::destroy() {
-    if (_initialized) {
-        // Must be in reverse order of creation
-        logicalDevice.destroy(commandPool);
-        swapchain.destroy(logicalDevice);
-        logicalDevice.destroyRenderPass(renderPass);
-        for (int i = 0; i < framebuffers.size(); i++) {
-            logicalDevice.destroyFramebuffer(framebuffers[i]);
-        }
-        logicalDevice.destroy();
-        instance.destroySurfaceKHR(surface);
-        vkb::destroy_debug_utils_messenger(instance, debugMessenger);
-        instance.destroy();
+    logicalDevice.waitIdle();
+    mainDeletionQueue.destroy_all();
 
-        glfwDestroyWindow(window);
-        glfwTerminate();
-
-        _initialized = false;
-    }
+    _initialized = false;
 }
 
 void Engine::initGLFW() {
@@ -128,6 +118,10 @@ void Engine::initGLFW() {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     window = glfwCreateWindow(windowSize.x, windowSize.y, "Voxel Engine", nullptr, nullptr);
+    mainDeletionQueue.push_group([&]() {
+        glfwDestroyWindow(window);
+        glfwTerminate();
+    });
 }
 
 void Engine::initVulkan() {
@@ -151,6 +145,10 @@ void Engine::initVulkan() {
     instance = vkbInstance.instance;
     VULKAN_HPP_DEFAULT_DISPATCHER.init(instance);
     debugMessenger = vkbInstance.debug_messenger;
+    mainDeletionQueue.push_group([&]() {
+        vkb::destroy_debug_utils_messenger(instance, debugMessenger);
+        instance.destroy();
+    });
 
     // Create GLFW Vulkan surface
     VkSurfaceKHR initSurface;
@@ -159,6 +157,9 @@ void Engine::initVulkan() {
         throw std::runtime_error("Failed to create Vulkan surface.");
     }
     surface = initSurface;
+    mainDeletionQueue.push_group([&]() {
+        instance.destroySurfaceKHR(surface);
+    });
 
     // Select physical device (GPU)
     vkb::PhysicalDeviceSelector physicalDeviceSelector(vkbInstance);
@@ -181,6 +182,9 @@ void Engine::initVulkan() {
     vkb::Device vkbDevice = deviceResult.value();
     logicalDevice = vkbDevice.device;
     VULKAN_HPP_DEFAULT_DISPATCHER.init(logicalDevice);
+    mainDeletionQueue.push_group([&]() {
+        logicalDevice.destroy();
+    });
 
     // Get queues from device
     graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
@@ -188,11 +192,17 @@ void Engine::initVulkan() {
 
     // Create swapchain
     swapchain.init(physicalDevice, logicalDevice, surface, windowSize.x, windowSize.y);
+    mainDeletionQueue.push_group([&]() {
+        swapchain.destroy(logicalDevice);
+    });
 }
 
 void Engine::initCommands() {
     vk::CommandPoolCreateInfo commandPoolInfo(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, graphicsQueueFamily);
     commandPool = logicalDevice.createCommandPool(commandPoolInfo);
+    mainDeletionQueue.push_group([&]() {
+        logicalDevice.destroy(commandPool);
+    });
 
     vk::CommandBufferAllocateInfo commandBufferInfo(commandPool, vk::CommandBufferLevel::ePrimary, 1);
     mainCommandBuffer = logicalDevice.allocateCommandBuffers(commandBufferInfo).front();
@@ -225,6 +235,9 @@ void Engine::initDefaultRenderpass() {
     renderPassInfo.pSubpasses = &subpass;
 
     renderPass = logicalDevice.createRenderPass(renderPassInfo);
+    mainDeletionQueue.push_group([&]() {
+        logicalDevice.destroyRenderPass(renderPass);
+    });
 }
 
 void Engine::initFramebuffers() {
@@ -238,18 +251,33 @@ void Engine::initFramebuffers() {
     size_t imageCount = swapchain.images.size();
     framebuffers = std::vector<vk::Framebuffer>(imageCount);
 
-    for (size_t i = 0; i < imageCount; i++) {
+    for (size_t i = 0; i < imageCount; i++)
+    {
         framebufferInfo.pAttachments = &swapchain.imageViews[i];
         framebuffers[i] = logicalDevice.createFramebuffer(framebufferInfo);
     }
+
+    mainDeletionQueue.push_group([&]() {
+        for (int i = 0; i < framebuffers.size(); i++)
+        {
+            logicalDevice.destroyFramebuffer(framebuffers[i]);
+        }
+    });
 }
 
 void Engine::initSyncStructures() {
     vk::FenceCreateInfo fenceInfo;
     fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
     renderFence = logicalDevice.createFence(fenceInfo);
+    mainDeletionQueue.push_group([&]() {
+       logicalDevice.destroy(renderFence);
+    });
 
     vk::SemaphoreCreateInfo semaphoreInfo;
     presentSemaphore = logicalDevice.createSemaphore(semaphoreInfo);
     renderSemaphore = logicalDevice.createSemaphore(semaphoreInfo);
+    mainDeletionQueue.push_group([&]() {
+        logicalDevice.destroy(presentSemaphore);
+        logicalDevice.destroy(renderSemaphore);
+    });
 }

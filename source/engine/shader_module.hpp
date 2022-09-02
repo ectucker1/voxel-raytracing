@@ -22,5 +22,7 @@ public:
     void load();
     bool isLoaded() const { return _loaded; }
 
+    void destroy();
+
     vk::PipelineShaderStageCreateInfo buildStageCreateInfo() const;
 };

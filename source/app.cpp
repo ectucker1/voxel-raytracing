@@ -10,8 +10,8 @@ int run() {
     try {
         auto buildPipeline = [&]()
         {
-            TrianglePipelineBuilder pipeline(engine);
-            return pipeline.build(engine->renderPass);
+            TrianglePipelineBuilder builder(engine);
+            return builder.build(engine->renderPass);
         };
 
         engine->init(buildPipeline);

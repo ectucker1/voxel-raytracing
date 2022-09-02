@@ -40,3 +40,9 @@ vk::PipelineShaderStageCreateInfo ShaderModule::buildStageCreateInfo() const
     info.pName = "main";
     return info;
 }
+
+void ShaderModule::destroy()
+{
+    if (_loaded)
+        _engine->logicalDevice.destroyShaderModule(_shaderModule);
+}

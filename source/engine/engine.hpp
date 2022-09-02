@@ -4,7 +4,9 @@
 #include <functional>
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
-#include "swapchain.hpp"
+#include "engine/swapchain.hpp"
+#include "engine/deletion_queue.hpp"
+#include "engine/pipeline_storage.hpp"
 
 class GLFWwindow;
 
@@ -24,6 +26,8 @@ public:
 
     vk::SurfaceKHR surface;
 
+    DeletionQueue mainDeletionQueue;
+
     Swapchain swapchain;
 
     vk::Queue graphicsQueue;
@@ -40,14 +44,14 @@ public:
     vk::Semaphore renderSemaphore;
     vk::Fence renderFence;
 
-    vk::Pipeline graphicsPipeline;
+    PipelineStorage graphicsPipeline;
 
 private:
     bool _initialized;
     uint32_t _frameCount;
 
 public:
-    void init(const std::function<vk::Pipeline()>& buildPipeline);
+    void init(const std::function<PipelineStorage()>& buildPipeline);
     void run();
     void destroy();
 

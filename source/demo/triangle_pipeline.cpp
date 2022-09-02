@@ -7,16 +7,21 @@ TrianglePipelineBuilder::TrianglePipelineBuilder(const std::shared_ptr<Engine>& 
 
 std::vector<vk::PipelineShaderStageCreateInfo> TrianglePipelineBuilder::buildShaderStages()
 {
-    ShaderModule vertexModule(_engine, "../shader/triangle.vert.spv", vk::ShaderStageFlagBits::eVertex);
-    ShaderModule fragmentModule(_engine, "../shader/triangle.frag.spv", vk::ShaderStageFlagBits::eFragment);
+    vertexModule = std::make_unique<ShaderModule>(_engine, "../shader/triangle.vert.spv", vk::ShaderStageFlagBits::eVertex);
+    fragmentModule = std::make_unique<ShaderModule>(_engine, "../shader/triangle.frag.spv", vk::ShaderStageFlagBits::eFragment);
 
-    vertexModule.load();
-    fragmentModule.load();
+    vertexModule->load();
+    fragmentModule->load();
+
+    pipelineDeletionQueue.push_group([&]() {
+        vertexModule->destroy();
+        fragmentModule->destroy();
+    });
 
     return
     {
-        vertexModule.buildStageCreateInfo(),
-        fragmentModule.buildStageCreateInfo()
+        vertexModule->buildStageCreateInfo(),
+        fragmentModule->buildStageCreateInfo()
     };
 }
 
