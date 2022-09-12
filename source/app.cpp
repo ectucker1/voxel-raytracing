@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include "engine/engine.hpp"
-#include "demo/triangle_pipeline.hpp"
+#include "demo/voxel_sdf_pipeline.hpp"
 
 int run() {
     std::shared_ptr<Engine> engine = std::make_shared<Engine>();
@@ -10,7 +10,7 @@ int run() {
     try {
         auto buildPipeline = [&]()
         {
-            TrianglePipelineBuilder builder(engine);
+            VoxelSDFPipleineBuilder builder(engine);
             return builder.build(engine->renderPass);
         };
 

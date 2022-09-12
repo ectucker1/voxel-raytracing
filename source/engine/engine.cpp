@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 #include <fmt/format.h>
+#include "demo/screen_quad_push.hpp"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -102,6 +103,11 @@ void Engine::draw() {
     scissor.offset = vk::Offset2D(0, 0);
     scissor.extent = vk::Extent2D(windowSize.x, windowSize.y);
     commandBuffer.setScissor(0, 1, &scissor);
+
+    // Set push constants
+    ScreenQuadPush constants;
+    constants.screenSize = windowSize;
+    commandBuffer.pushConstants(graphicsPipeline.layout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
 
     commandBuffer.draw(3, 1, 0, 0);
 
