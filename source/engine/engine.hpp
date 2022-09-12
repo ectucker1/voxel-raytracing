@@ -7,8 +7,12 @@
 #include "engine/swapchain.hpp"
 #include "engine/deletion_queue.hpp"
 #include "engine/pipeline_storage.hpp"
+#include "util/resource_ring.hpp"
+#include "util/bidirectional_event_queue.hpp"
 
 class GLFWwindow;
+
+#define MAX_FRAMES_IN_FLIGHT 2
 
 // A wrapper that creates all the vulkan objects that other components can depend on.
 class Engine
@@ -18,6 +22,8 @@ public:
     GLFWwindow* window;
     glm::uvec2 windowSize = { 1280, 720 };
     bool windowResized = false;
+
+    BidirectionalEventQueue resizeListeners;
 
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugMessenger;
@@ -35,9 +41,15 @@ public:
     uint32_t graphicsQueueFamily;
 
     vk::CommandPool commandPool;
-    vk::CommandBuffer mainCommandBuffer;
+    ResourceRing<vk::CommandBuffer> commandBuffers;
+
+    ResourceRing<vk::Semaphore> presentSemaphores;
+    ResourceRing<vk::Semaphore> renderSemaphores;
+    ResourceRing<vk::Fence> renderFences;
 
     vk::RenderPass renderPass;
+
+    ResourceRing<vk::Framebuffer> framebuffers;
 
     PipelineStorage graphicsPipeline;
 
@@ -53,8 +65,12 @@ public:
 private:
     void draw();
 
+    void resize();
+
     void initGLFW();
     void initVulkan();
     void initCommands();
+    void initSyncStructures();
     void initDefaultRenderpass();
+    void initFramebuffers();
 };

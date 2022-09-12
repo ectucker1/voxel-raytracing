@@ -10,8 +10,9 @@ void Engine::init(const std::function<PipelineStorage()>& buildPipeline) {
     initGLFW();
     initVulkan();
     initCommands();
+    initSyncStructures();
     initDefaultRenderpass();
-    swapchain.initFramebuffers(renderPass);
+    initFramebuffers();
     graphicsPipeline = buildPipeline();
     mainDeletionQueue.push_group([&]() {
         logicalDevice.destroy(graphicsPipeline.layout);
@@ -34,15 +35,20 @@ void Engine::run() {
 void Engine::draw() {
     vk::Result res;
 
+    const vk::Fence& renderFence = renderFences.next();
+    const vk::Semaphore& presentSemaphore = presentSemaphores.next();
+    const vk::Semaphore& renderSemaphore = renderSemaphores.next();
+    const vk::CommandBuffer& commandBuffer = commandBuffers.next();
+
     // Wait for GPU to finish work
-    res = logicalDevice.waitForFences(1, &swapchain.renderFence, true, 1000000000);
+    res = logicalDevice.waitForFences(1, &renderFence, true, 1000000000);
     vk::resultCheck(res, "Error waiting for fences");
 
     // Request image from swapchain
-    vk::ResultValue<uint32_t> imageIndexResult = logicalDevice.acquireNextImageKHR(swapchain.swapchain, 1000000000, swapchain.presentSemaphore);
+    vk::ResultValue<uint32_t> imageIndexResult = logicalDevice.acquireNextImageKHR(swapchain.swapchain, 1000000000, presentSemaphore);
     if (imageIndexResult.result == vk::Result::eErrorOutOfDateKHR || windowResized)
     {
-        swapchain.recreate();
+        resize();
         return;
     }
     else if (imageIndexResult.result != vk::Result::eSuccess && imageIndexResult.result != vk::Result::eSuboptimalKHR)
@@ -52,16 +58,16 @@ void Engine::draw() {
     uint32_t imageIndex = imageIndexResult.value;
 
     // Reset fences
-    res = logicalDevice.resetFences(1, &swapchain.renderFence);
+    res = logicalDevice.resetFences(1, &renderFence);
     vk::resultCheck(res, "Error resetting fences");
 
     // Reset command buffer
-    mainCommandBuffer.reset();
+    commandBuffer.reset();
 
     // Begin command buffer
     vk::CommandBufferBeginInfo cmdBeginInfo;
     cmdBeginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-    mainCommandBuffer.begin(cmdBeginInfo);
+    commandBuffer.begin(cmdBeginInfo);
 
     // Create clear color for this frame
     vk::ClearValue clearValue;
@@ -74,13 +80,13 @@ void Engine::draw() {
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.extent = vk::Extent2D(windowSize.x, windowSize.y);
-    renderpassInfo.framebuffer = swapchain.framebuffers[imageIndex];
+    renderpassInfo.framebuffer = framebuffers[imageIndex];
     renderpassInfo.clearValueCount = 1;
     renderpassInfo.pClearValues = &clearValue;
-    mainCommandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
+    commandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
 
     // Bind pipeline
-    mainCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline.pipeline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline.pipeline);
 
     // Set viewport
     vk::Viewport viewport;
@@ -90,46 +96,66 @@ void Engine::draw() {
     viewport.height = static_cast<float>(windowSize.y);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    mainCommandBuffer.setViewport(0, 1, &viewport);
+    commandBuffer.setViewport(0, 1, &viewport);
 
     // Set scissor
     vk::Rect2D scissor;
     scissor.offset = vk::Offset2D(0, 0);
     scissor.extent = vk::Extent2D(windowSize.x, windowSize.y);
-    mainCommandBuffer.setScissor(0, 1, &scissor);
+    commandBuffer.setScissor(0, 1, &scissor);
 
-    mainCommandBuffer.draw(3, 1, 0, 0);
+    commandBuffer.draw(3, 1, 0, 0);
 
     // End main renderpass
-    mainCommandBuffer.endRenderPass();
+    commandBuffer.endRenderPass();
 
     // End command buffer
-    mainCommandBuffer.end();
+    commandBuffer.end();
 
     // Submit command buffer to queue
     vk::SubmitInfo submitInfo;
     vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     submitInfo.pWaitDstStageMask = &waitStage;
     submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &swapchain.presentSemaphore;
+    submitInfo.pWaitSemaphores = &presentSemaphore;
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &swapchain.renderSemaphore;
+    submitInfo.pSignalSemaphores = &renderSemaphore;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &mainCommandBuffer;
-    res = graphicsQueue.submit(1, &submitInfo, swapchain.renderFence);
+    submitInfo.pCommandBuffers = &commandBuffer;
+    res = graphicsQueue.submit(1, &submitInfo, renderFence);
     vk::resultCheck(res, "Error submitting command buffer");
 
     // Present to swapchain
     vk::PresentInfoKHR presentInfo;
     presentInfo.pSwapchains = &swapchain.swapchain;
     presentInfo.swapchainCount = 1;
-    presentInfo.pWaitSemaphores = &swapchain.renderSemaphore;
+    presentInfo.pWaitSemaphores = &renderSemaphore;
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pImageIndices = &imageIndex;
     res = graphicsQueue.presentKHR(presentInfo);
     vk::resultCheck(res, "Error presenting");
 
     _frameCount++;
+}
+
+void Engine::resize()
+{
+    // Wait until window is not minimized
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0)
+    {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+    windowSize = { width, height };
+    windowResized = false;
+
+    logicalDevice.waitIdle();
+
+    resizeListeners.fireListeners();
+
+    logicalDevice.waitIdle();
 }
 
 void Engine::destroy() {
@@ -240,8 +266,42 @@ void Engine::initCommands() {
         logicalDevice.destroy(commandPool);
     });
 
-    vk::CommandBufferAllocateInfo commandBufferInfo(commandPool, vk::CommandBufferLevel::ePrimary, 1);
-    mainCommandBuffer = logicalDevice.allocateCommandBuffers(commandBufferInfo).front();
+    vk::CommandBufferAllocateInfo commandBufferInfo(commandPool, vk::CommandBufferLevel::ePrimary, MAX_FRAMES_IN_FLIGHT);
+    auto commandBufferResult = logicalDevice.allocateCommandBuffers(commandBufferInfo);
+    commandBuffers.create(MAX_FRAMES_IN_FLIGHT, [&](size_t i) {
+        return commandBufferResult[i];
+    });
+}
+
+void Engine::initSyncStructures() {
+    vk::FenceCreateInfo fenceInfo;
+    fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+    renderFences.create(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
+        return logicalDevice.createFence(fenceInfo);
+    });
+
+    vk::SemaphoreCreateInfo semaphoreInfo;
+    presentSemaphores.create(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
+        return logicalDevice.createSemaphore(semaphoreInfo);
+    });
+    renderSemaphores.create(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
+        return logicalDevice.createSemaphore(semaphoreInfo);
+    });
+
+    uint32_t syncGroup = mainDeletionQueue.push_group([&]() {
+        renderFences.destroy([&](const vk::Fence& fence) {
+            logicalDevice.destroy(fence);
+        });
+        presentSemaphores.destroy([&](const vk::Semaphore& semaphore) {
+            logicalDevice.destroy(semaphore);
+        });
+        renderSemaphores.destroy([&](const vk::Semaphore& semaphore) {
+            logicalDevice.destroy(semaphore);
+        });
+    });
+
+    resizeListeners.push([=]() { mainDeletionQueue.destroy_group(syncGroup); },
+                         [=]() { initSyncStructures(); });
 }
 
 void Engine::initDefaultRenderpass() {
@@ -274,4 +334,30 @@ void Engine::initDefaultRenderpass() {
     mainDeletionQueue.push_group([&]() {
         logicalDevice.destroyRenderPass(renderPass);
     });
+}
+
+void Engine::initFramebuffers()
+{
+    vk::FramebufferCreateInfo framebufferInfo;
+    framebufferInfo.renderPass = renderPass;
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.width = windowSize.x;
+    framebufferInfo.height = windowSize.y;
+    framebufferInfo.layers = 1;
+
+    size_t imageCount = swapchain.imageViews.size();
+    framebuffers = ResourceRing<vk::Framebuffer>(imageCount);
+    framebuffers.create(imageCount, [&](size_t i) {
+        framebufferInfo.pAttachments = &swapchain.imageViews[i];
+        return logicalDevice.createFramebuffer(framebufferInfo);
+    });
+
+    uint32_t framebufferGroup = mainDeletionQueue.push_group([&]() {
+        framebuffers.destroy([&](const vk::Framebuffer& framebuffer) {
+            logicalDevice.destroy(framebuffer);
+        });
+    });
+
+    resizeListeners.push([=]() { mainDeletionQueue.destroy_group(framebufferGroup); },
+                         [=]() { initFramebuffers(); });
 }
