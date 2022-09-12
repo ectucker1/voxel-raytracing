@@ -5,7 +5,7 @@
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 #include "engine/swapchain.hpp"
-#include "engine/deletion_queue.hpp"
+#include "util/deletion_queue.hpp"
 #include "engine/pipeline_storage.hpp"
 #include "util/resource_ring.hpp"
 #include "util/bidirectional_event_queue.hpp"
@@ -69,7 +69,6 @@ private:
 
     void initGLFW();
     void initVulkan();
-    void initCommands();
     void initSyncStructures();
     void initDefaultRenderpass();
     void initFramebuffers();

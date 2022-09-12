@@ -11,6 +11,7 @@ class BidirectionalEventQueue
 private:
     std::deque<std::function<void()>> _beforeListeners;
     std::deque<std::function<void()>> _afterListeners;
+
 public:
     // Pushes a new listener onto the queue.
     // The before will be called before all current, the after will be called after all current.

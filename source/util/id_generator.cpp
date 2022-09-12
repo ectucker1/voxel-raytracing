@@ -6,9 +6,10 @@ uint32_t IdGenerator::next()
     {
         _next++;
     }
-    _used.insert(_next);
+    uint32_t id = _next;
+    _used.insert(id);
     _next++;
-    return _next;
+    return id;
 }
 
 void IdGenerator::reclaim(uint32_t id)

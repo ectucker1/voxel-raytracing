@@ -9,7 +9,6 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 void Engine::init(const std::function<PipelineStorage()>& buildPipeline) {
     initGLFW();
     initVulkan();
-    initCommands();
     initSyncStructures();
     initDefaultRenderpass();
     initFramebuffers();
@@ -257,15 +256,15 @@ void Engine::initVulkan() {
 
     // Create swapchain
     swapchain.init(shared_from_this());
-}
 
-void Engine::initCommands() {
+    // Create command pool
     vk::CommandPoolCreateInfo commandPoolInfo(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, graphicsQueueFamily);
     commandPool = logicalDevice.createCommandPool(commandPoolInfo);
     mainDeletionQueue.push_group([&]() {
         logicalDevice.destroy(commandPool);
     });
 
+    // Create command buffers
     vk::CommandBufferAllocateInfo commandBufferInfo(commandPool, vk::CommandBufferLevel::ePrimary, MAX_FRAMES_IN_FLIGHT);
     auto commandBufferResult = logicalDevice.allocateCommandBuffers(commandBufferInfo);
     commandBuffers.create(MAX_FRAMES_IN_FLIGHT, [&](size_t i) {

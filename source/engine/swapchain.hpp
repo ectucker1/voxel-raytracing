@@ -11,8 +11,6 @@ class Swapchain
 {
 private:
     std::shared_ptr<Engine> _engine;
-
-    uint32_t _deletorGroup;
 public:
     vk::SwapchainKHR swapchain;
 

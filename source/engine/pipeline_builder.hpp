@@ -3,7 +3,7 @@
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
-#include "engine/deletion_queue.hpp"
+#include "util/deletion_queue.hpp"
 #include "engine/pipeline_storage.hpp"
 
 class Engine;

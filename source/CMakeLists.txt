@@ -33,4 +33,16 @@ target_compile_definitions(voxels_lib PRIVATE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC
 target_enable_werror(voxels_lib)
 
 # Precompile pch.hpp header
-target_precompile_headers(voxels_lib PRIVATE pch.hpp)
+target_precompile_headers(voxels_lib
+    PRIVATE
+        <memory>
+        <vector>
+        <unordered_map>
+        <unordered_set>
+        <deque>
+        <functional>
+        <fmt/format.h>
+        <VkBootstrap.h>
+        <vulkan/vulkan.hpp>
+        <glm/glm.hpp>
+)

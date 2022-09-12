@@ -13,6 +13,7 @@ class ResourceRing
 private:
     std::vector<T> _ring;
     size_t _curr = 0;
+
 public:
     // Creates a new empty resource ring.
     ResourceRing() {}

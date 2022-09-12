@@ -35,7 +35,7 @@ void Swapchain::init(const std::shared_ptr<Engine>& engine)
         return resultImageViews[i];
     });
 
-    _deletorGroup = _engine->mainDeletionQueue.push_group([&]() {
+    uint32_t swapchainGroup = _engine->mainDeletionQueue.push_group([&]() {
         _engine->logicalDevice.destroySwapchainKHR(swapchain);
 
         imageViews.destroy([&](const vk::ImageView& view) {
@@ -43,6 +43,6 @@ void Swapchain::init(const std::shared_ptr<Engine>& engine)
         });
     });
 
-    engine->resizeListeners.push([=]() { _engine->mainDeletionQueue.destroy_group(_deletorGroup); },
+    engine->resizeListeners.push([=]() { _engine->mainDeletionQueue.destroy_group(swapchainGroup); },
                                  [=]() { init(_engine); });
 }
