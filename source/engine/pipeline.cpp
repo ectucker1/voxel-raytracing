@@ -1,11 +1,11 @@
-#include "pipeline_builder.hpp"
+#include "pipeline.hpp"
 
 #include "engine/engine.hpp"
 
-APipelineBuilder::APipelineBuilder(const std::shared_ptr<Engine>& engine) : _engine(engine) {}
-
-PipelineStorage APipelineBuilder::build(const vk::RenderPass& pass)
+void APipeline::init(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass)
 {
+    _engine = engine;
+
     // Create prerequisite pipeline infos
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = buildShaderStages();
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo = buildVertexInputInfo();
@@ -17,7 +17,8 @@ PipelineStorage APipelineBuilder::build(const vk::RenderPass& pass)
     vk::PipelineColorBlendStateCreateInfo colorBlendInfo = buildColorBlendAttachment();
     vk::PipelineLayoutCreateInfo layoutInfo = buildPipelineLayout();
 
-    vk::PipelineLayout layout = _engine->logicalDevice.createPipelineLayout(layoutInfo);
+    // Create layout
+    layout = _engine->logicalDevice.createPipelineLayout(layoutInfo);
 
     // Group together create info
     vk::GraphicsPipelineCreateInfo pipelineInfo;
@@ -40,14 +41,10 @@ PipelineStorage APipelineBuilder::build(const vk::RenderPass& pass)
 
     pipelineDeletionQueue.destroy_all();
 
-    return
-    {
-        layout,
-        pipelineResult.value
-    };
+    pipeline = pipelineResult.value;
 }
 
-vk::PipelineDynamicStateCreateInfo APipelineBuilder::buildDynamicState()
+vk::PipelineDynamicStateCreateInfo APipeline::buildDynamicState()
 {
     // Use viewport and scissor as dynamic states so we can resize the window
     _dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
@@ -58,7 +55,7 @@ vk::PipelineDynamicStateCreateInfo APipelineBuilder::buildDynamicState()
     return dynamicStateInfo;
 }
 
-vk::PipelineViewportStateCreateInfo APipelineBuilder::buildViewport()
+vk::PipelineViewportStateCreateInfo APipeline::buildViewport()
 {
     vk::PipelineViewportStateCreateInfo viewportInfo;
     viewportInfo.viewportCount = 1;
@@ -67,7 +64,7 @@ vk::PipelineViewportStateCreateInfo APipelineBuilder::buildViewport()
     return viewportInfo;
 }
 
-vk::PipelineRasterizationStateCreateInfo APipelineBuilder::buildRasterizer()
+vk::PipelineRasterizationStateCreateInfo APipeline::buildRasterizer()
 {
     vk::PipelineRasterizationStateCreateInfo rasterizationInfo;
     rasterizationInfo.depthClampEnable = false;
@@ -84,7 +81,7 @@ vk::PipelineRasterizationStateCreateInfo APipelineBuilder::buildRasterizer()
     return rasterizationInfo;
 }
 
-vk::PipelineColorBlendStateCreateInfo APipelineBuilder::buildColorBlendAttachment()
+vk::PipelineColorBlendStateCreateInfo APipeline::buildColorBlendAttachment()
 {
     // Attach to all color bits
     _colorBlendAttachment = vk::PipelineColorBlendAttachmentState();
@@ -104,7 +101,7 @@ vk::PipelineColorBlendStateCreateInfo APipelineBuilder::buildColorBlendAttachmen
     return colorBlendInfo;
 }
 
-vk::PipelineMultisampleStateCreateInfo APipelineBuilder::buildMultisampling()
+vk::PipelineMultisampleStateCreateInfo APipeline::buildMultisampling()
 {
     // No multisampling for now
     vk::PipelineMultisampleStateCreateInfo multisamplingInfo;
@@ -118,7 +115,7 @@ vk::PipelineMultisampleStateCreateInfo APipelineBuilder::buildMultisampling()
     return multisamplingInfo;
 }
 
-vk::PipelineLayoutCreateInfo APipelineBuilder::buildPipelineLayout()
+vk::PipelineLayoutCreateInfo APipeline::buildPipelineLayout()
 {
     // Defaults are fine for layout
     return {};

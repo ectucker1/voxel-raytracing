@@ -4,9 +4,7 @@
 #include "engine/shader_module.hpp"
 #include "demo/screen_quad_push.hpp"
 
-VoxelSDFPipleineBuilder::VoxelSDFPipleineBuilder(const std::shared_ptr<Engine>& engine) : APipelineBuilder(engine) {}
-
-std::vector<vk::PipelineShaderStageCreateInfo> VoxelSDFPipleineBuilder::buildShaderStages()
+std::vector<vk::PipelineShaderStageCreateInfo> VoxelSDFPipeline::buildShaderStages()
 {
     vertexModule = std::make_unique<ShaderModule>(_engine, "../shader/screen_quad.vert.spv", vk::ShaderStageFlagBits::eVertex);
     fragmentModule = std::make_unique<ShaderModule>(_engine, "../shader/voxel_sdf_toy.frag.spv", vk::ShaderStageFlagBits::eFragment);
@@ -26,7 +24,7 @@ std::vector<vk::PipelineShaderStageCreateInfo> VoxelSDFPipleineBuilder::buildSha
     };
 }
 
-vk::PipelineVertexInputStateCreateInfo VoxelSDFPipleineBuilder::buildVertexInputInfo()
+vk::PipelineVertexInputStateCreateInfo VoxelSDFPipeline::buildVertexInputInfo()
 {
     // No inputs needed for the fullscreen triangle
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
@@ -35,7 +33,7 @@ vk::PipelineVertexInputStateCreateInfo VoxelSDFPipleineBuilder::buildVertexInput
     return vertexInputInfo;
 }
 
-vk::PipelineInputAssemblyStateCreateInfo VoxelSDFPipleineBuilder::buildInputAssembly()
+vk::PipelineInputAssemblyStateCreateInfo VoxelSDFPipeline::buildInputAssembly()
 {
     // Triangle list with no restart
     vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
@@ -44,7 +42,7 @@ vk::PipelineInputAssemblyStateCreateInfo VoxelSDFPipleineBuilder::buildInputAsse
     return inputAssemblyInfo;
 }
 
-vk::PipelineLayoutCreateInfo VoxelSDFPipleineBuilder::buildPipelineLayout()
+vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
 {
     pushConstantRange = std::make_unique<vk::PushConstantRange>();
     pushConstantRange->offset = 0;

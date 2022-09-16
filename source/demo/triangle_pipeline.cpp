@@ -3,9 +3,7 @@
 #include "engine/engine.hpp"
 #include "engine/shader_module.hpp"
 
-TrianglePipelineBuilder::TrianglePipelineBuilder(const std::shared_ptr<Engine>& engine) : APipelineBuilder(engine) {}
-
-std::vector<vk::PipelineShaderStageCreateInfo> TrianglePipelineBuilder::buildShaderStages()
+std::vector<vk::PipelineShaderStageCreateInfo> TrianglePipeline::buildShaderStages()
 {
     vertexModule = std::make_unique<ShaderModule>(_engine, "../shader/triangle.vert.spv", vk::ShaderStageFlagBits::eVertex);
     fragmentModule = std::make_unique<ShaderModule>(_engine, "../shader/triangle.frag.spv", vk::ShaderStageFlagBits::eFragment);
@@ -25,7 +23,7 @@ std::vector<vk::PipelineShaderStageCreateInfo> TrianglePipelineBuilder::buildSha
     };
 }
 
-vk::PipelineVertexInputStateCreateInfo TrianglePipelineBuilder::buildVertexInputInfo()
+vk::PipelineVertexInputStateCreateInfo TrianglePipeline::buildVertexInputInfo()
 {
     // No inputs needed for the demo triangle
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
@@ -34,7 +32,7 @@ vk::PipelineVertexInputStateCreateInfo TrianglePipelineBuilder::buildVertexInput
     return vertexInputInfo;
 }
 
-vk::PipelineInputAssemblyStateCreateInfo TrianglePipelineBuilder::buildInputAssembly()
+vk::PipelineInputAssemblyStateCreateInfo TrianglePipeline::buildInputAssembly()
 {
     // Triangle list with no restart
     vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo;

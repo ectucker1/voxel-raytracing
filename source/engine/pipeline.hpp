@@ -4,14 +4,17 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include "util/deletion_queue.hpp"
-#include "engine/pipeline_storage.hpp"
 
 class Engine;
 
-// Builder utility for Vulkan graphics pipelines.
+// An abstract Vulkan graphics pipelines.
 // Different configurations should be implemented as subclasses of this base class.
-class APipelineBuilder
+class APipeline
 {
+public:
+    vk::Pipeline pipeline;
+    vk::PipelineLayout layout;
+
 protected:
     std::shared_ptr<Engine> _engine;
 
@@ -21,8 +24,7 @@ protected:
     vk::PipelineColorBlendAttachmentState _colorBlendAttachment;
 
 public:
-    APipelineBuilder(const std::shared_ptr<Engine>& engine);
-    PipelineStorage build(const vk::RenderPass& pass);
+    void init(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass);
 
 protected:
     virtual std::vector<vk::PipelineShaderStageCreateInfo> buildShaderStages() = 0;

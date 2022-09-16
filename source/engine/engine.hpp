@@ -6,11 +6,11 @@
 #include <glm/glm.hpp>
 #include "engine/swapchain.hpp"
 #include "util/deletion_queue.hpp"
-#include "engine/pipeline_storage.hpp"
 #include "util/resource_ring.hpp"
 #include "util/bidirectional_event_queue.hpp"
 
 class GLFWwindow;
+class ARenderer;
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -47,29 +47,23 @@ public:
     ResourceRing<vk::Semaphore> renderSemaphores;
     ResourceRing<vk::Fence> renderFences;
 
-    vk::RenderPass renderPass;
-
-    ResourceRing<vk::Framebuffer> framebuffers;
-
-    PipelineStorage graphicsPipeline;
+    std::shared_ptr<ARenderer> renderer;
 
 private:
     bool _initialized;
     uint32_t _frameCount;
 
 public:
-    void init(const std::function<PipelineStorage()>& buildPipeline);
+    void init(const std::shared_ptr<ARenderer>& renderer);
     void run();
     void destroy();
 
 private:
-    void draw();
+    void draw(float delta);
 
     void resize();
 
     void initGLFW();
     void initVulkan();
     void initSyncStructures();
-    void initDefaultRenderpass();
-    void initFramebuffers();
 };

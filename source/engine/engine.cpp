@@ -4,35 +4,44 @@
 #include <VkBootstrap.h>
 #include <fmt/format.h>
 #include "demo/screen_quad_push.hpp"
+#include "engine/renderer.hpp"
+#include <chrono>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
-void Engine::init(const std::function<PipelineStorage()>& buildPipeline) {
+void Engine::init(const std::shared_ptr<ARenderer>& _renderer)
+{
     initGLFW();
     initVulkan();
     initSyncStructures();
-    initDefaultRenderpass();
-    initFramebuffers();
-    graphicsPipeline = buildPipeline();
-    mainDeletionQueue.push_group([&]() {
-        logicalDevice.destroy(graphicsPipeline.layout);
-        logicalDevice.destroy(graphicsPipeline.pipeline);
-    });
+
+    renderer = _renderer;
+    renderer->init(shared_from_this());
 
     _initialized = true;
 }
 
-void Engine::run() {
+void Engine::run()
+{
     if (!_initialized)
         throw std::runtime_error("Cannot run engine before initializing.");
 
-    while (!glfwWindowShouldClose(window)) {
+    using TimePoint = std::chrono::steady_clock::time_point;
+    TimePoint start = std::chrono::steady_clock::now();
+    TimePoint end = start;
+    float delta = 0;
+
+    while (!glfwWindowShouldClose(window))
+    {
+        start = std::chrono::steady_clock::now();
         glfwPollEvents();
-        draw();
+        draw(delta);
+        end = std::chrono::steady_clock::now();
+        delta = std::chrono::duration<float>(end - start).count();
     }
 }
 
-void Engine::draw() {
+void Engine::draw(float delta) {
     vk::Result res;
 
     const vk::Fence& renderFence = renderFences.next();
@@ -61,6 +70,9 @@ void Engine::draw() {
     res = logicalDevice.resetFences(1, &renderFence);
     vk::resultCheck(res, "Error resetting fences");
 
+    // Update logic
+    renderer->update(delta);
+
     // Reset command buffer
     commandBuffer.reset();
 
@@ -69,50 +81,8 @@ void Engine::draw() {
     cmdBeginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
     commandBuffer.begin(cmdBeginInfo);
 
-    // Create clear color for this frame
-    vk::ClearValue clearValue;
-    float flash = abs(sin(_frameCount / 512.0f));
-    clearValue.color = vk::ClearColorValue(std::array<float, 4> {0.0f, 0.0f, flash, 1.0f});
-
-    // Start main renderpass
-    vk::RenderPassBeginInfo renderpassInfo;
-    renderpassInfo.renderPass = renderPass;
-    renderpassInfo.renderArea.offset = 0;
-    renderpassInfo.renderArea.offset = 0;
-    renderpassInfo.renderArea.extent = vk::Extent2D(windowSize.x, windowSize.y);
-    renderpassInfo.framebuffer = framebuffers[imageIndex];
-    renderpassInfo.clearValueCount = 1;
-    renderpassInfo.pClearValues = &clearValue;
-    commandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
-
-    // Bind pipeline
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline.pipeline);
-
-    // Set viewport
-    vk::Viewport viewport;
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(windowSize.x);
-    viewport.height = static_cast<float>(windowSize.y);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    commandBuffer.setViewport(0, 1, &viewport);
-
-    // Set scissor
-    vk::Rect2D scissor;
-    scissor.offset = vk::Offset2D(0, 0);
-    scissor.extent = vk::Extent2D(windowSize.x, windowSize.y);
-    commandBuffer.setScissor(0, 1, &scissor);
-
-    // Set push constants
-    ScreenQuadPush constants;
-    constants.screenSize = windowSize;
-    commandBuffer.pushConstants(graphicsPipeline.layout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
-
-    commandBuffer.draw(3, 1, 0, 0);
-
-    // End main renderpass
-    commandBuffer.endRenderPass();
+    // Record the commands
+    renderer->recordCommands(commandBuffer, imageIndex);
 
     // End command buffer
     commandBuffer.end();
@@ -307,62 +277,4 @@ void Engine::initSyncStructures() {
 
     resizeListeners.push([=]() { mainDeletionQueue.destroy_group(syncGroup); },
                          [=]() { initSyncStructures(); });
-}
-
-void Engine::initDefaultRenderpass() {
-    vk::AttachmentDescription colorAttachment;
-    colorAttachment.format = swapchain.imageFormat;
-    colorAttachment.samples = vk::SampleCountFlagBits::e1;
-    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-    colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-    colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-    colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
-
-    vk::AttachmentReference colorAttachmentRef;
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
-
-    vk::SubpassDescription subpass;
-    subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-
-    vk::RenderPassCreateInfo renderPassInfo;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-
-    renderPass = logicalDevice.createRenderPass(renderPassInfo);
-    mainDeletionQueue.push_group([&]() {
-        logicalDevice.destroyRenderPass(renderPass);
-    });
-}
-
-void Engine::initFramebuffers()
-{
-    vk::FramebufferCreateInfo framebufferInfo;
-    framebufferInfo.renderPass = renderPass;
-    framebufferInfo.attachmentCount = 1;
-    framebufferInfo.width = windowSize.x;
-    framebufferInfo.height = windowSize.y;
-    framebufferInfo.layers = 1;
-
-    size_t imageCount = swapchain.imageViews.size();
-    framebuffers = ResourceRing<vk::Framebuffer>(imageCount);
-    framebuffers.create(imageCount, [&](size_t i) {
-        framebufferInfo.pAttachments = &swapchain.imageViews[i];
-        return logicalDevice.createFramebuffer(framebufferInfo);
-    });
-
-    uint32_t framebufferGroup = mainDeletionQueue.push_group([&]() {
-        framebuffers.destroy([&](const vk::Framebuffer& framebuffer) {
-            logicalDevice.destroy(framebuffer);
-        });
-    });
-
-    resizeListeners.push([=]() { mainDeletionQueue.destroy_group(framebufferGroup); },
-                         [=]() { initFramebuffers(); });
 }

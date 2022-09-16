@@ -2,19 +2,15 @@
 
 #include <iostream>
 #include "engine/engine.hpp"
-#include "demo/voxel_sdf_pipeline.hpp"
+#include "demo/voxel_sdf_renderer.hpp"
+#include "demo/triangle_renderer.hpp"
 
 int run() {
     std::shared_ptr<Engine> engine = std::make_shared<Engine>();
+    std::shared_ptr<ARenderer> renderer = std::make_shared<VoxelSDFRenderer>();
 
     try {
-        auto buildPipeline = [&]()
-        {
-            VoxelSDFPipleineBuilder builder(engine);
-            return builder.build(engine->renderPass);
-        };
-
-        engine->init(buildPipeline);
+        engine->init(renderer);
         engine->run();
         engine->destroy();
     } catch (const std::exception& e) {
