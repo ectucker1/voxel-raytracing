@@ -60,6 +60,7 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     // Set push constants
     ScreenQuadPush constants;
     constants.screenSize = _engine->windowSize;
+    constants.time = _time;
     commandBuffer.pushConstants(_pipeline.layout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
 
     commandBuffer.draw(3, 1, 0, 0);

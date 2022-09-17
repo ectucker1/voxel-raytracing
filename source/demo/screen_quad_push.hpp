@@ -5,4 +5,5 @@
 struct ScreenQuadPush
 {
     glm::ivec2 screenSize;
+    float time;
 };
