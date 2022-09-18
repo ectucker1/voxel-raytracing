@@ -1,5 +1,6 @@
 #include "voxel_sdf_renderer.hpp"
 
+#include <stdlib.h>
 #include "engine/engine.hpp"
 #include "demo/screen_quad_push.hpp"
 
@@ -7,7 +8,16 @@ void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
 {
     ARenderer::init(engine);
 
+    _sceneTexture = std::make_shared<Texture3D>();
+    uint8_t sceneData[16 * 16 * 16 * 1];
+    for (int i = 0; i < 16 * 16 * 16 * 1; i++)
+    {
+        sceneData[i] = rand() % 2;
+    }
+    _sceneTexture->init(_engine, sceneData, 16, 16, 16, 1, vk::Format::eR8Uint);
+
     _pipeline = VoxelSDFPipeline();
+    _pipeline.sceneData = _sceneTexture;
     _pipeline.init(_engine, _windowRenderPass);
     _engine->mainDeletionQueue.push_group([&]() {
        _engine->logicalDevice.destroy(_pipeline.layout);
@@ -62,6 +72,11 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     constants.screenSize = _engine->windowSize;
     constants.time = _time;
     commandBuffer.pushConstants(_pipeline.layout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
+
+    // Bind texture descriptor set
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline.layout,
+                                     0, 1, &_pipeline.sceneDataDescriptorSet,
+                                     0, nullptr);
 
     commandBuffer.draw(3, 1, 0, 0);
 

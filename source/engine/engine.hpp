@@ -3,6 +3,9 @@
 #include <memory>
 #include <functional>
 #include <vulkan/vulkan.hpp>
+#pragma warning(push, 0)
+#include <vk_mem_alloc.h>
+#pragma warning(pop)
 #include <glm/glm.hpp>
 #include "engine/swapchain.hpp"
 #include "util/deletion_queue.hpp"
@@ -31,6 +34,8 @@ public:
     vk::PhysicalDevice physicalDevice;
     vk::Device logicalDevice;
 
+    VmaAllocator allocator;
+
     vk::SurfaceKHR surface;
 
     DeletionQueue mainDeletionQueue;
@@ -40,8 +45,13 @@ public:
     vk::Queue graphicsQueue;
     uint32_t graphicsQueueFamily;
 
-    vk::CommandPool commandPool;
-    ResourceRing<vk::CommandBuffer> commandBuffers;
+    vk::CommandPool renderCommandPool;
+    ResourceRing<vk::CommandBuffer> renderCommandBuffers;
+
+    vk::CommandPool uploadCommandPool;
+    vk::CommandBuffer uploadCommandBuffer;
+
+    vk::DescriptorPool descriptorPool;
 
     ResourceRing<vk::Semaphore> presentSemaphores;
     ResourceRing<vk::Semaphore> renderSemaphores;
@@ -57,6 +67,8 @@ public:
     void init(const std::shared_ptr<ARenderer>& renderer);
     void run();
     void destroy();
+
+    void upload_submit(const std::function<void(const vk::CommandBuffer& cmd)>& recordCommands);
 
 private:
     void draw(float delta);

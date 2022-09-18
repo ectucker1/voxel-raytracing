@@ -3,6 +3,7 @@
 # Find packages
 find_package(VulkanHeaders CONFIG)
 find_package(vk-bootstrap CONFIG)
+find_package(vulkan-memory-allocator CONFIG)
 find_package(glfw3 CONFIG)
 find_package(fmt CONFIG)
 find_package(glm CONFIG)
@@ -20,6 +21,7 @@ target_include_directories(voxels_lib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # Link to external libraries
 target_link_libraries(voxels_lib
     Vulkan::Headers
+    vulkan-memory-allocator::vulkan-memory-allocator
     vk-bootstrap::vk-bootstrap
     glfw
     fmt::fmt

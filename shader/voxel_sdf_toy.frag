@@ -10,6 +10,8 @@ layout (push_constant) uniform constants
     float time;
 } pushConstants;
 
+layout (set = 0, binding = 0) uniform usampler3D scene;
+
 const int MAX_RAY_STEPS = 64;
 
 mat2 rotate(float t)
@@ -17,23 +19,21 @@ mat2 rotate(float t)
     return mat2(vec2(cos(t), sin(t)), vec2(-sin(t), cos(t)));
 }
 
-// Signed distance field of a sphere
-float sdSphere(vec3 p, float d)
-{
-    return length(p) - d;
-}
+const uvec3 SCENE_SIZE = uvec3(16);
 
 // Scene definition as union of SDFs
 bool getVoxel(ivec3 coord)
 {
-    vec3 pos = vec3(coord);
-    float dist = min(sdSphere(pos + vec3(5.0, 2.0, 0.0), 5.0), sdSphere(pos + vec3(-5.0, -7.0, 0.0), 5.0));
-    return dist < 0.0;
+    ivec3 pos = coord + ivec3(SCENE_SIZE) / 2;
+    if (pos.x > SCENE_SIZE.x || pos.y > SCENE_SIZE.y || pos.z > SCENE_SIZE.z || pos.x < 0 || pos.y < 0 || pos.z < 0)
+        return false;
+    uint val = texture(scene, vec3(pos) / vec3(SCENE_SIZE)).r;
+    return val > 0;
 }
 
 void main()
 {
-    vec3 lightPos = vec3(7.0, 7.0, -7.0);
+    vec3 lightPos = vec3(20.0, 20.0, -20.0);
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
 
     // Screen position from -1.0 to 1.0

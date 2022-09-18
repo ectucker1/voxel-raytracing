@@ -1,10 +1,12 @@
 #include "engine/renderer.hpp"
 #include "util/resource_ring.hpp"
 #include "demo/voxel_sdf_pipeline.hpp"
+#include "engine/resource/texture_3d.hpp"
 
 class VoxelSDFRenderer : public ARenderer
 {
 private:
+    std::shared_ptr<Texture3D> _sceneTexture;
     VoxelSDFPipeline _pipeline;
 
     float _time = 0;

@@ -1,11 +1,13 @@
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
+#define VMA_IMPLEMENTATION
 #include "engine.hpp"
 
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 #include <fmt/format.h>
-#include "demo/screen_quad_push.hpp"
-#include "engine/renderer.hpp"
 #include <chrono>
+#include "engine/renderer.hpp"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -47,7 +49,7 @@ void Engine::draw(float delta) {
     const vk::Fence& renderFence = renderFences.next();
     const vk::Semaphore& presentSemaphore = presentSemaphores.next();
     const vk::Semaphore& renderSemaphore = renderSemaphores.next();
-    const vk::CommandBuffer& commandBuffer = commandBuffers.next();
+    const vk::CommandBuffer& commandBuffer = renderCommandBuffers.next();
 
     // Wait for GPU to finish work
     res = logicalDevice.waitForFences(1, &renderFence, true, 1000000000);
@@ -168,6 +170,7 @@ void Engine::initVulkan() {
     // Set up dynamic loader
     vk::DynamicLoader dl;
     auto vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    auto vkGetDeviceProcAddr = dl.getProcAddress<PFN_vkGetDeviceProcAddr>("vkGetDeviceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
     // Create Vulkan instance
@@ -226,6 +229,21 @@ void Engine::initVulkan() {
         logicalDevice.destroy();
     });
 
+    // Create memory allocator
+    VmaVulkanFunctions vulkanFunctions = {};
+    vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice = physicalDevice;
+    allocatorInfo.device = logicalDevice;
+    allocatorInfo.instance = instance;
+    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_1;
+    allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+    vmaCreateAllocator(&allocatorInfo, &allocator);
+    mainDeletionQueue.push_group([&]() {
+        vmaDestroyAllocator(allocator);
+    });
+
     // Get queues from device
     graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
     graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
@@ -233,18 +251,40 @@ void Engine::initVulkan() {
     // Create swapchain
     swapchain.init(shared_from_this());
 
-    // Create command pool
+    // Create command pools
     vk::CommandPoolCreateInfo commandPoolInfo(vk::CommandPoolCreateFlagBits::eResetCommandBuffer, graphicsQueueFamily);
-    commandPool = logicalDevice.createCommandPool(commandPoolInfo);
+    uploadCommandPool = logicalDevice.createCommandPool(commandPoolInfo);
     mainDeletionQueue.push_group([&]() {
-        logicalDevice.destroy(commandPool);
+        logicalDevice.destroy(uploadCommandPool);
+    });
+    renderCommandPool = logicalDevice.createCommandPool(commandPoolInfo);
+    mainDeletionQueue.push_group([&]() {
+        logicalDevice.destroy(renderCommandPool);
     });
 
     // Create command buffers
-    vk::CommandBufferAllocateInfo commandBufferInfo(commandPool, vk::CommandBufferLevel::ePrimary, MAX_FRAMES_IN_FLIGHT);
-    auto commandBufferResult = logicalDevice.allocateCommandBuffers(commandBufferInfo);
-    commandBuffers.create(MAX_FRAMES_IN_FLIGHT, [&](size_t i) {
-        return commandBufferResult[i];
+    vk::CommandBufferAllocateInfo uploadCommandBufferInfo(renderCommandPool, vk::CommandBufferLevel::ePrimary, MAX_FRAMES_IN_FLIGHT);
+    auto uploadCommandBufferResult = logicalDevice.allocateCommandBuffers(uploadCommandBufferInfo);
+    uploadCommandBuffer = uploadCommandBufferResult.front();
+    vk::CommandBufferAllocateInfo renderCommandBufferInfo(renderCommandPool, vk::CommandBufferLevel::ePrimary, MAX_FRAMES_IN_FLIGHT);
+    auto renderCommandBufferResult = logicalDevice.allocateCommandBuffers(renderCommandBufferInfo);
+    renderCommandBuffers.create(MAX_FRAMES_IN_FLIGHT, [&](size_t i) {
+        return renderCommandBufferResult[i];
+    });
+
+    // Create descriptor pool
+    std::vector<vk::DescriptorPoolSize> sizes =
+    {
+        { vk::DescriptorType::eUniformBuffer, 10 },
+        { vk::DescriptorType::eCombinedImageSampler, 10 }
+    };
+    vk::DescriptorPoolCreateInfo descriptorPoolInfo {};
+    descriptorPoolInfo.maxSets = 10;
+    descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(sizes.size());
+    descriptorPoolInfo.pPoolSizes = sizes.data();
+    descriptorPool = logicalDevice.createDescriptorPool(descriptorPoolInfo);
+    mainDeletionQueue.push_group([=]() {
+        logicalDevice.destroy(descriptorPool);
     });
 }
 
@@ -277,4 +317,32 @@ void Engine::initSyncStructures() {
 
     resizeListeners.push([=]() { mainDeletionQueue.destroy_group(syncGroup); },
                          [=]() { initSyncStructures(); });
+}
+
+void Engine::upload_submit(const std::function<void(const vk::CommandBuffer& cmd)>& recordCommands)
+{
+    logicalDevice.waitIdle();
+
+    uploadCommandBuffer.reset();
+
+    // Begin command buffer
+    vk::CommandBufferBeginInfo cmdBeginInfo;
+    cmdBeginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+    uploadCommandBuffer.begin(cmdBeginInfo);
+
+    // Record the commands
+    recordCommands(uploadCommandBuffer);
+
+    // End command buffer
+    uploadCommandBuffer.end();
+
+    vk::SubmitInfo submitInfo;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &uploadCommandBuffer;
+
+    auto res = graphicsQueue.submit(1, &submitInfo, VK_NULL_HANDLE);
+    vk::resultCheck(res, "Error submitting upload command buffer");
+
+    logicalDevice.waitIdle();
+    logicalDevice.resetCommandPool(uploadCommandPool);
 }
