@@ -32,13 +32,13 @@ public:
     vk::DebugUtilsMessengerEXT debugMessenger;
 
     vk::PhysicalDevice physicalDevice;
-    vk::Device logicalDevice;
+    vk::Device device;
 
     VmaAllocator allocator;
 
     vk::SurfaceKHR surface;
 
-    DeletionQueue mainDeletionQueue;
+    DeletionQueue deletionQueue;
 
     Swapchain swapchain;
 
@@ -64,7 +64,8 @@ private:
     uint32_t _frameCount;
 
 public:
-    void init(const std::shared_ptr<ARenderer>& renderer);
+    void init();
+    void setRenderer(const std::shared_ptr<ARenderer>& renderer);
     void run();
     void destroy();
 

@@ -2,10 +2,11 @@
 
 #include "engine/engine.hpp"
 
-void APipeline::init(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass)
-{
-    _engine = engine;
+APipeline::APipeline(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass)
+    : AResource(engine), pass(pass) {}
 
+void APipeline::init()
+{
     // Create prerequisite pipeline infos
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = buildShaderStages();
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo = buildVertexInputInfo();
@@ -18,7 +19,10 @@ void APipeline::init(const std::shared_ptr<Engine>& engine, const vk::RenderPass
     vk::PipelineLayoutCreateInfo layoutInfo = buildPipelineLayout();
 
     // Create layout
-    layout = _engine->logicalDevice.createPipelineLayout(layoutInfo);
+    layout = engine->device.createPipelineLayout(layoutInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
+        engine->device.destroy(layout);
+    });
 
     // Group together create info
     vk::GraphicsPipelineCreateInfo pipelineInfo;
@@ -36,12 +40,14 @@ void APipeline::init(const std::shared_ptr<Engine>& engine, const vk::RenderPass
     pipelineInfo.subpass = 0;
 
     // Actually build the pipeline
-    auto pipelineResult = _engine->logicalDevice.createGraphicsPipeline(VK_NULL_HANDLE, pipelineInfo);
+    auto pipelineResult = engine->device.createGraphicsPipeline(VK_NULL_HANDLE, pipelineInfo);
     vk::resultCheck(pipelineResult.result, "Error creating graphics pipeline");
+    pipeline = pipelineResult.value;
+    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
+        engine->device.destroy(pipeline);
+    });
 
     pipelineDeletionQueue.destroy_all();
-
-    pipeline = pipelineResult.value;
 }
 
 vk::PipelineDynamicStateCreateInfo APipeline::buildDynamicState()

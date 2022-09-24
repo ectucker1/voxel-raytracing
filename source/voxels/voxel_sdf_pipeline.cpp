@@ -1,7 +1,7 @@
 #include "voxel_sdf_pipeline.hpp"
 
 #include "engine/engine.hpp"
-#include "engine/shader_module.hpp"
+#include "engine/resource/shader_module.hpp"
 #include "engine/resource/texture_3d.hpp"
 #include "engine/resource/buffer.hpp"
 #include "voxels/screen_quad_push.hpp"
@@ -9,11 +9,8 @@
 
 std::vector<vk::PipelineShaderStageCreateInfo> VoxelSDFPipeline::buildShaderStages()
 {
-    vertexModule = std::make_unique<ShaderModule>(_engine, "../shader/screen_quad.vert.spv", vk::ShaderStageFlagBits::eVertex);
-    fragmentModule = std::make_unique<ShaderModule>(_engine, "../shader/voxel_volume.frag.spv", vk::ShaderStageFlagBits::eFragment);
-
-    vertexModule->load();
-    fragmentModule->load();
+    vertexModule = std::make_unique<ShaderModule>(engine, "../shader/screen_quad.vert.spv", vk::ShaderStageFlagBits::eVertex);
+    fragmentModule = std::make_unique<ShaderModule>(engine, "../shader/voxel_volume.frag.spv", vk::ShaderStageFlagBits::eFragment);
 
     pipelineDeletionQueue.push_group([&]() {
         vertexModule->destroy();
@@ -62,18 +59,18 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
     vk::DescriptorSetLayoutCreateInfo sceneDataLayoutInfo {};
     sceneDataLayoutInfo.bindingCount = 1;
     sceneDataLayoutInfo.pBindings = &sceneDataBinding;
-    sceneDataLayout = _engine->logicalDevice.createDescriptorSetLayout(sceneDataLayoutInfo);
-    _engine->mainDeletionQueue.push_group([=]() {
-        _engine->logicalDevice.destroy(sceneDataLayout);
+    sceneDataLayout = engine->device.createDescriptorSetLayout(sceneDataLayoutInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
+        engine->device.destroy(sceneDataLayout);
     });
 
     // Scene texture descriptor set
     std::vector<vk::DescriptorSetLayout> sceneDataLayouts(MAX_FRAMES_IN_FLIGHT, sceneDataLayout);
     vk::DescriptorSetAllocateInfo sceneDescriptorAllocInfo = {};
-    sceneDescriptorAllocInfo.descriptorPool = _engine->descriptorPool;
+    sceneDescriptorAllocInfo.descriptorPool = engine->descriptorPool;
     sceneDescriptorAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
     sceneDescriptorAllocInfo.pSetLayouts = sceneDataLayouts.data();
-    auto sceneDescriptorAllocResult = _engine->logicalDevice.allocateDescriptorSets(sceneDescriptorAllocInfo);
+    auto sceneDescriptorAllocResult = engine->device.allocateDescriptorSets(sceneDescriptorAllocInfo);
     sceneDataDescriptorSet = sceneDescriptorAllocResult.front();
     descriptorSets.push_back(sceneDataDescriptorSet);
     vk::DescriptorImageInfo imageInfo {};
@@ -86,7 +83,7 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
     sceneTextureWrite.descriptorCount = 1;
     sceneTextureWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
     sceneTextureWrite.pImageInfo = &imageInfo;
-    _engine->logicalDevice.updateDescriptorSets(1, &sceneTextureWrite, 0, nullptr);
+    engine->device.updateDescriptorSets(1, &sceneTextureWrite, 0, nullptr);
 
     // Palette descriptor layout
     vk::DescriptorSetLayoutBinding paletteBinding {};
@@ -97,18 +94,18 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
     vk::DescriptorSetLayoutCreateInfo paletteLayoutInfo {};
     paletteLayoutInfo.bindingCount = 1;
     paletteLayoutInfo.pBindings = &paletteBinding;
-    paletteLayout = _engine->logicalDevice.createDescriptorSetLayout(paletteLayoutInfo);
-    _engine->mainDeletionQueue.push_group([=]() {
-        _engine->logicalDevice.destroy(paletteLayout);
+    paletteLayout = engine->device.createDescriptorSetLayout(paletteLayoutInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
+        engine->device.destroy(paletteLayout);
     });
 
     // Palette descriptor set
     std::vector<vk::DescriptorSetLayout> paletteLayouts(MAX_FRAMES_IN_FLIGHT, paletteLayout);
     vk::DescriptorSetAllocateInfo paletteDescriptorAllocInfo = {};
-    paletteDescriptorAllocInfo.descriptorPool = _engine->descriptorPool;
+    paletteDescriptorAllocInfo.descriptorPool = engine->descriptorPool;
     paletteDescriptorAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
     paletteDescriptorAllocInfo.pSetLayouts = paletteLayouts.data();
-    auto paletteDescriptorAllocResult = _engine->logicalDevice.allocateDescriptorSets(paletteDescriptorAllocInfo);
+    auto paletteDescriptorAllocResult = engine->device.allocateDescriptorSets(paletteDescriptorAllocInfo);
     paletteDescriptorSet = paletteDescriptorAllocResult.front();
     descriptorSets.push_back(paletteDescriptorSet);
     vk::DescriptorBufferInfo paletteBufferInfo {};
@@ -121,7 +118,7 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
     paletteBufferWrite.descriptorCount = 1;
     paletteBufferWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
     paletteBufferWrite.pBufferInfo = &paletteBufferInfo;
-    _engine->logicalDevice.updateDescriptorSets(1, &paletteBufferWrite, 0, nullptr);
+    engine->device.updateDescriptorSets(1, &paletteBufferWrite, 0, nullptr);
 
     descriptorLayouts.push_back(sceneDataLayout);
     descriptorLayouts.push_back(paletteLayout);

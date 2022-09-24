@@ -2,7 +2,7 @@
 
 #include <memory>
 #include "engine/pipeline.hpp"
-#include "engine/shader_module.hpp"
+#include "engine/resource/shader_module.hpp"
 
 class TrianglePipeline
     : public APipeline
@@ -10,8 +10,12 @@ class TrianglePipeline
 private:
     std::unique_ptr<ShaderModule> vertexModule;
     std::unique_ptr<ShaderModule> fragmentModule;
+
 protected:
     virtual std::vector<vk::PipelineShaderStageCreateInfo> buildShaderStages() override;
     virtual vk::PipelineVertexInputStateCreateInfo buildVertexInputInfo() override;
     virtual vk::PipelineInputAssemblyStateCreateInfo buildInputAssembly() override;
+
+public:
+    TrianglePipeline(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass) : APipeline(engine, pass) {}
 };

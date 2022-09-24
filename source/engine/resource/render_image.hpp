@@ -2,10 +2,11 @@
 
 #include <vulkan/vulkan.hpp>
 #include "vk_mem_alloc.h"
+#include "engine/resource.hpp"
 
 class Engine;
 
-class RenderImage
+class RenderImage : AResource
 {
 public:
     uint32_t width, height = 0;

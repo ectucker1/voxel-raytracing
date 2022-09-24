@@ -4,16 +4,14 @@
 #include <fstream>
 #include <fmt/format.h>
 
-ShaderModule::ShaderModule(const std::shared_ptr<Engine>& engine, const std::string& filename, vk::ShaderStageFlagBits stage) :
-    _engine(engine), _filename(filename), _stage(stage) {}
-
-void ShaderModule::load()
+ShaderModule::ShaderModule(const std::shared_ptr<Engine>& engine, const std::string& filename, vk::ShaderStageFlagBits stage)
+    : AResource(engine), _stage(stage)
 {
     // Open shader file
-    std::ifstream file(_filename, std::ios::ate | std::ios::binary);
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
     if (!file.is_open())
     {
-        throw std::runtime_error(fmt::format("Failed to open shader file {}.", _filename));
+        throw std::runtime_error(fmt::format("Failed to open shader file {}.", filename));
     }
 
     // Reserve buffer to load file
@@ -27,9 +25,10 @@ void ShaderModule::load()
     vk::ShaderModuleCreateInfo shaderCreateInfo;
     shaderCreateInfo.codeSize = buffer.size() * sizeof(uint32_t);
     shaderCreateInfo.pCode = buffer.data();
-    _shaderModule = _engine->logicalDevice.createShaderModule(shaderCreateInfo);
-
-    _loaded = true;
+    _shaderModule = engine->device.createShaderModule(shaderCreateInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
+        engine->device.destroyShaderModule(_shaderModule);
+    });
 }
 
 vk::PipelineShaderStageCreateInfo ShaderModule::buildStageCreateInfo() const
@@ -39,10 +38,4 @@ vk::PipelineShaderStageCreateInfo ShaderModule::buildStageCreateInfo() const
     info.module = _shaderModule;
     info.pName = "main";
     return info;
-}
-
-void ShaderModule::destroy()
-{
-    if (_loaded)
-        _engine->logicalDevice.destroyShaderModule(_shaderModule);
 }

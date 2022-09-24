@@ -19,4 +19,6 @@ public:
     ResourceRing<vk::ImageView> imageViews;
 public:
     void init(const std::shared_ptr<Engine>& engine);
+
+    size_t size();
 };

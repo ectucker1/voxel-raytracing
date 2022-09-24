@@ -4,27 +4,31 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include "util/deletion_queue.hpp"
+#include "engine/resource.hpp"
 
 class Engine;
 
 // An abstract Vulkan graphics pipelines.
 // Different configurations should be implemented as subclasses of this base class.
-class APipeline
+class APipeline : public AResource
 {
 public:
     vk::Pipeline pipeline;
     vk::PipelineLayout layout;
 
 protected:
-    std::shared_ptr<Engine> _engine;
-
     DeletionQueue pipelineDeletionQueue;
+
+    vk::RenderPass pass;
 
     std::vector<vk::DynamicState> _dynamicStates;
     vk::PipelineColorBlendAttachmentState _colorBlendAttachment;
 
+protected:
+    APipeline::APipeline(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass);
+
 public:
-    void init(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass);
+    void init();
 
 protected:
     virtual std::vector<vk::PipelineShaderStageCreateInfo> buildShaderStages() = 0;

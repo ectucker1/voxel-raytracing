@@ -7,15 +7,13 @@
 #include "voxels/material.hpp"
 #include "engine/resource/buffer.hpp"
 
-void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
+VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
-    ARenderer::init(engine);
-
     camera = CameraController(glm::vec3(8, 8, -50), 90.0, 0.0f, 1 / glm::tan(glm::radians(55.0f / 2)));
 
-    _renderColorTarget = ResourceRing<RenderImage>(_engine->swapchain.imageViews.size());
-    _renderColorTarget.createEmplace(_engine->swapchain.imageViews.size(), engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
-                                     vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eColor);
+    _renderColorTarget = ResourceRing<RenderImage>::fromArgs(engine->swapchain.size(), engine,
+                                                             renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
+                                                             vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eColor);
 
     vk::AttachmentDescription colorAttachment;
     colorAttachment.format = _renderColorTarget[0].format;
@@ -38,9 +36,9 @@ void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
     renderPassInfo.pAttachments = &colorAttachment;
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
-    _renderColorPass = _engine->logicalDevice.createRenderPass(renderPassInfo);
-    _engine->mainDeletionQueue.push_group([&]() {
-        _engine->logicalDevice.destroyRenderPass(_renderColorPass);
+    _renderColorPass = engine->device.createRenderPass(renderPassInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
+        engine->device.destroyRenderPass(_renderColorPass);
     });
 
     vk::FramebufferCreateInfo framebufferInfo;
@@ -49,18 +47,16 @@ void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
     framebufferInfo.width = renderRes.x;
     framebufferInfo.height = renderRes.y;
     framebufferInfo.layers = 1;
-    _renderColorFramebuffer = ResourceRing<vk::Framebuffer>(_engine->swapchain.imageViews.size());
-    _renderColorFramebuffer.create(_engine->swapchain.imageViews.size(), [&](size_t i) {
+    _renderColorFramebuffer = ResourceRing<vk::Framebuffer>::fromFunc(engine->swapchain.size(), [&](size_t i) {
         framebufferInfo.pAttachments = &_renderColorTarget[i].imageView;
-        return _engine->logicalDevice.createFramebuffer(framebufferInfo);
+        return engine->device.createFramebuffer(framebufferInfo);
     });
-    _engine->mainDeletionQueue.push_group([&]() {
+    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
         _renderColorFramebuffer.destroy([&](const vk::Framebuffer& framebuffer) {
-            _engine->logicalDevice.destroy(framebuffer);
+            engine->device.destroy(framebuffer);
         });
     });
 
-    _sceneTexture = std::make_shared<Texture3D>();
     uint8_t sceneData[16 * 16 * 16 * 1];
     for (int i = 0; i < 16 * 16 * 16 * 1; i++)
     {
@@ -71,37 +67,24 @@ void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
         else
             sceneData[i] = 0;
     }
-    _sceneTexture->init(_engine, sceneData, 16, 16, 16, 1, vk::Format::eR8Uint);
+    _sceneTexture = std::make_shared<Texture3D>(engine, sceneData, 16, 16, 16, 1, vk::Format::eR8Uint);
 
     std::array<Material, 256> paletteMaterials = {};
     for (size_t m = 0; m < paletteMaterials.size(); m++)
     {
         paletteMaterials[m].diffuse = glm::vec4(float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, 1.0f);
     }
-    _paletteBuffer = std::make_shared<Buffer>();
-    _paletteBuffer->init(_engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    void* paletteData;
-    vmaMapMemory(engine->allocator, _paletteBuffer->allocation, &paletteData);
-    memcpy(paletteData, paletteMaterials.data(), 256 * sizeof(Material));
-    vmaUnmapMemory(engine->allocator, _paletteBuffer->allocation);
-    engine->mainDeletionQueue.push_group([=] {
-        vmaDestroyBuffer(_engine->allocator, _paletteBuffer->buffer, _paletteBuffer->allocation);
-    });
+    _paletteBuffer = std::make_shared<Buffer>(engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _paletteBuffer->copyData(paletteMaterials.data(), 256 * sizeof(Material));
 
-    _pipeline = VoxelSDFPipeline();
-    _pipeline.sceneData = _sceneTexture;
-    _pipeline.paletteBuffer = _paletteBuffer;
-    _pipeline.init(_engine, _renderColorPass);
-    _engine->mainDeletionQueue.push_group([&]() {
-       _engine->logicalDevice.destroy(_pipeline.layout);
-       _engine->logicalDevice.destroy(_pipeline.pipeline);
-    });
+    _pipeline = std::make_unique<VoxelSDFPipeline>(engine, _renderColorPass, _sceneTexture, _paletteBuffer);
+    _pipeline->init();
 }
 
 void VoxelSDFRenderer::update(float delta)
 {
     _time += delta;
-    camera.update(_engine->window, delta);
+    camera.update(engine->window, delta);
 }
 
 void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t flightFrame)
@@ -123,7 +106,7 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     commandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
 
     // Bind pipeline
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline.pipeline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->pipeline);
 
     // Set viewport
     vk::Viewport viewport;
@@ -150,11 +133,11 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     constants.camUp = glm::vec4(camera.up, 0);
     constants.camRight = glm::vec4(camera.right, 0);
     constants.time = _time;
-    commandBuffer.pushConstants(_pipeline.layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
+    commandBuffer.pushConstants(_pipeline->layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
 
     // Bind descriptor sets
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline.layout,
-                                     0, 2, _pipeline.descriptorSets.data(),
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline->layout,
+                                     0, 2, _pipeline->descriptorSets.data(),
                                      0, nullptr);
 
     commandBuffer.draw(6, 1, 0, 0);
@@ -164,12 +147,12 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
 
     // Copy color target into swapchain image
     cmdutil::blit(commandBuffer, _renderColorTarget[flightFrame].image, { 0, 0 }, { 1920, 1080 },
-                  _engine->swapchain.images[flightFrame], { 0, 0 }, _engine->windowSize);
+                  engine->swapchain.images[flightFrame], { 0, 0 }, engine->windowSize);
 
     // Return swapchain image to present layout
     cmdutil::imageMemoryBarrier(
             commandBuffer,
-            _engine->swapchain.images[flightFrame],
+            engine->swapchain.images[flightFrame],
             vk::AccessFlagBits::eTransferWrite,
             vk::AccessFlagBits::eMemoryRead,
             vk::ImageLayout::eUndefined,

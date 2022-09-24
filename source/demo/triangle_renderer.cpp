@@ -2,16 +2,10 @@
 
 #include "engine/engine.hpp"
 
-void TriangleRenderer::init(const std::shared_ptr<Engine>& engine)
+TriangleRenderer::TriangleRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
-    ARenderer::init(engine);
-
-    _pipeline = TrianglePipeline();
-    _pipeline.init(_engine, _windowRenderPass);
-    _engine->mainDeletionQueue.push_group([&]() {
-        _engine->logicalDevice.destroy(_pipeline.layout);
-        _engine->logicalDevice.destroy(_pipeline.pipeline);
-    });
+    _pipeline = std::make_unique<TrianglePipeline>(engine, _windowRenderPass);
+    _pipeline->init();
 }
 
 void TriangleRenderer::update(float delta)
@@ -31,21 +25,21 @@ void TriangleRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     renderpassInfo.renderPass = _windowRenderPass;
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.offset = 0;
-    renderpassInfo.renderArea.extent = vk::Extent2D(_engine->windowSize.x, _engine->windowSize.y);
+    renderpassInfo.renderArea.extent = vk::Extent2D(engine->windowSize.x, engine->windowSize.y);
     renderpassInfo.framebuffer = _windowFramebuffers[flightFrame];
     renderpassInfo.clearValueCount = 1;
     renderpassInfo.pClearValues = &clearValue;
     commandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
 
     // Bind pipeline
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline.pipeline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->pipeline);
 
     // Set viewport
     vk::Viewport viewport;
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(_engine->windowSize.x);
-    viewport.height = static_cast<float>(_engine->windowSize.y);
+    viewport.width = static_cast<float>(engine->windowSize.x);
+    viewport.height = static_cast<float>(engine->windowSize.y);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     commandBuffer.setViewport(0, 1, &viewport);
@@ -53,7 +47,7 @@ void TriangleRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     // Set scissor
     vk::Rect2D scissor;
     scissor.offset = vk::Offset2D(0, 0);
-    scissor.extent = vk::Extent2D(_engine->windowSize.x, _engine->windowSize.y);
+    scissor.extent = vk::Extent2D(engine->windowSize.x, engine->windowSize.y);
     commandBuffer.setScissor(0, 1, &scissor);
 
     commandBuffer.draw(3, 1, 0, 0);

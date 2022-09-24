@@ -17,37 +17,32 @@ private:
 public:
     // Creates a new empty resource ring.
     ResourceRing() {}
-    // Creates a new resource ring of the given size.
-    explicit ResourceRing(size_t n)
-    {
-        _ring.reserve(n);
-    }
 
-    // Fills the ring with n resources.
+    // Creates a new ring filled with n resources.
     // These resources are created by the given create function.
-    void create(size_t n, const std::function<T(size_t i)>& create)
+    static ResourceRing fromFunc(size_t n, const std::function<T(size_t i)>& create)
     {
-        if (_ring.size() > 0)
-            throw std::runtime_error("Cannot create already initialized ResourceRing");
-        _ring.reserve(n);
+        ResourceRing ring;
+        ring._ring.reserve(n);
         for (size_t i = 0; i < n; i++)
         {
-            _ring.push_back(create(i));
+            ring._ring.push_back(create(i));
         }
+        return ring;
     }
 
-    // Fills the ring with n resources.
-    // These resources are created by the given create function.
+    // Creates a new ring filled with n resources.
+    // These resources are created by constructor of the type, with the same arguments for each.
     template<class... Args>
-    void createEmplace(size_t n, Args&&... args)
+    static ResourceRing fromArgs(size_t n, Args&&... args)
     {
-        if (_ring.size() > 0)
-            throw std::runtime_error("Cannot create already initialized ResourceRing");
-        _ring.reserve(n);
+        ResourceRing ring;
+        ring._ring.reserve(n);
         for (size_t i = 0; i < n; i++)
         {
-            _ring.emplace_back(std::forward<Args>(args)...);
+            ring._ring.emplace_back(std::forward<Args>(args)...);
         }
+        return ring;
     }
 
     // Destroys all resources in the ring, using the given destructor function.

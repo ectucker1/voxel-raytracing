@@ -3,26 +3,18 @@
 #include <memory>
 #include <string>
 #include <vulkan/vulkan.hpp>
+#include "engine/resource.hpp"
 
 class Engine;
 
-class ShaderModule {
+class ShaderModule : public AResource
+{
 private:
-    std::shared_ptr<Engine> _engine;
-
-    std::string _filename = "";
     vk::ShaderStageFlagBits _stage;
     vk::ShaderModule _shaderModule;
 
-    bool _loaded = false;
-
 public:
     ShaderModule(const std::shared_ptr<Engine>& engine, const std::string& filename, vk::ShaderStageFlagBits stage);
-
-    void load();
-    bool isLoaded() const { return _loaded; }
-
-    void destroy();
 
     vk::PipelineShaderStageCreateInfo buildStageCreateInfo() const;
 };

@@ -9,7 +9,7 @@ void Swapchain::init(const std::shared_ptr<Engine>& engine)
 {
     _engine = engine;
 
-    vkb::SwapchainBuilder swapchainBuilder(_engine->physicalDevice, engine->logicalDevice, engine->surface);
+    vkb::SwapchainBuilder swapchainBuilder(_engine->physicalDevice, engine->device, engine->surface);
     auto swapchainResult = swapchainBuilder
             .use_default_format_selection()
             .add_image_usage_flags(VkImageUsageFlagBits::VK_IMAGE_USAGE_TRANSFER_DST_BIT)
@@ -25,25 +25,27 @@ void Swapchain::init(const std::shared_ptr<Engine>& engine)
     swapchain = vkbSwapchain.swapchain;
     imageFormat = vk::Format(vkbSwapchain.image_format);
     auto resultImages = vkbSwapchain.get_images().value();
-    images = ResourceRing<vk::Image>(resultImages.size());
-    images.create(resultImages.size(), [&](size_t i) {
+    images = ResourceRing<vk::Image>::fromFunc(resultImages.size(), [&](size_t i) {
         return resultImages[i];
     });
 
     auto resultImageViews = vkbSwapchain.get_image_views().value();
-    imageViews = ResourceRing<vk::ImageView>(resultImageViews.size());
-    imageViews.create(resultImageViews.size(), [&](size_t i) {
+    imageViews= ResourceRing<vk::ImageView>::fromFunc(resultImageViews.size(), [&](size_t i) {
         return resultImageViews[i];
     });
 
-    uint32_t swapchainGroup = _engine->mainDeletionQueue.push_group([&]() {
-        _engine->logicalDevice.destroySwapchainKHR(swapchain);
+    uint32_t swapchainGroup = _engine->deletionQueue.push_group([&]() {
+        _engine->device.destroySwapchainKHR(swapchain);
 
         imageViews.destroy([&](const vk::ImageView& view) {
-            _engine->logicalDevice.destroyImageView(view);
+            _engine->device.destroyImageView(view);
         });
     });
 
-    engine->resizeListeners.push([=]() { _engine->mainDeletionQueue.destroy_group(swapchainGroup); },
+    engine->resizeListeners.push([=]() { _engine->deletionQueue.destroy_group(swapchainGroup); },
                                  [=]() { init(_engine); });
+}
+
+size_t Swapchain::size() {
+    return images.size();
 }

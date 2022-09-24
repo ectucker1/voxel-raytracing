@@ -3,25 +3,19 @@
 #include "engine/engine.hpp"
 #include "engine/resource/buffer.hpp"
 
-void Texture3D::init(const std::shared_ptr<Engine>& engine,
+Texture3D::Texture3D(const std::shared_ptr<Engine>& engine,
                      void* imageData,
-                     uint32_t imageWidth, uint32_t imageHeight, uint32_t imageDepth,
+                     uint32_t width, uint32_t height, uint32_t depth,
                      uint32_t pixelSize, vk::Format imageFormat)
+                     : AResource(engine), width(width), height(height), depth(depth)
 {
-    width = imageWidth;
-    height = imageHeight;
-    depth = imageDepth;
     vk::DeviceSize imageSize = width * height * depth * pixelSize;
 
     // Create CPU-side buffer to hold data
-    Buffer stagingBuffer;
-    stagingBuffer.init(engine, imageSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+    Buffer stagingBuffer(engine, imageSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
 
     // Copy data to buffer
-    void* data;
-    vmaMapMemory(engine->allocator, stagingBuffer.allocation, &data);
-    std::memcpy(data, imageData, static_cast<size_t>(imageSize));
-    vmaUnmapMemory(engine->allocator, stagingBuffer.allocation);
+    stagingBuffer.copyData(imageData, static_cast<size_t>(imageSize));
 
     // Extents
     vk::Extent3D imageExtent;
@@ -98,10 +92,10 @@ void Texture3D::init(const std::shared_ptr<Engine>& engine,
                             1, &imageBarrierShader);
     });
 
-    engine->mainDeletionQueue.push_group([=]() {
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
         vmaDestroyImage(engine->allocator, image, allocation);
     });
-    vmaDestroyBuffer(engine->allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+    stagingBuffer.destroy();
 
     // Create image view
     vk::ImageViewCreateInfo imageViewInfo = {};
@@ -113,9 +107,9 @@ void Texture3D::init(const std::shared_ptr<Engine>& engine,
     imageViewInfo.subresourceRange.levelCount = 1;
     imageViewInfo.subresourceRange.baseArrayLayer = 0;
     imageViewInfo.subresourceRange.layerCount = 1;
-    imageView = engine->logicalDevice.createImageView(imageViewInfo);
-    engine->mainDeletionQueue.push_group([=]() {
-        engine->logicalDevice.destroy(imageView);
+    imageView = engine->device.createImageView(imageViewInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
+        engine->device.destroy(imageView);
     });
 
     // Create sampler
@@ -125,10 +119,8 @@ void Texture3D::init(const std::shared_ptr<Engine>& engine,
     samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
     samplerInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
     samplerInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
-    sampler = engine->logicalDevice.createSampler(samplerInfo);
-    engine->mainDeletionQueue.push_group([=]() {
-        engine->logicalDevice.destroy(sampler);
+    sampler = engine->device.createSampler(samplerInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
+        engine->device.destroy(sampler);
     });
-
-    _loaded = true;
 }

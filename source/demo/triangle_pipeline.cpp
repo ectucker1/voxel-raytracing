@@ -1,15 +1,12 @@
 #include "triangle_pipeline.hpp"
 
 #include "engine/engine.hpp"
-#include "engine/shader_module.hpp"
+#include "engine/resource/shader_module.hpp"
 
 std::vector<vk::PipelineShaderStageCreateInfo> TrianglePipeline::buildShaderStages()
 {
-    vertexModule = std::make_unique<ShaderModule>(_engine, "../shader/triangle.vert.spv", vk::ShaderStageFlagBits::eVertex);
-    fragmentModule = std::make_unique<ShaderModule>(_engine, "../shader/triangle.frag.spv", vk::ShaderStageFlagBits::eFragment);
-
-    vertexModule->load();
-    fragmentModule->load();
+    vertexModule = std::make_unique<ShaderModule>(engine, "../shader/triangle.vert.spv", vk::ShaderStageFlagBits::eVertex);
+    fragmentModule = std::make_unique<ShaderModule>(engine, "../shader/triangle.frag.spv", vk::ShaderStageFlagBits::eFragment);
 
     pipelineDeletionQueue.push_group([&]() {
         vertexModule->destroy();
