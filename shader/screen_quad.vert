@@ -6,6 +6,8 @@ layout (push_constant) uniform constants
 {
     vec4 camPos;
     vec4 camDir;
+    vec4 camRight;
+    vec4 camUp;
     uvec3 volumeBounds;
     float time;
     ivec2 screenSize;

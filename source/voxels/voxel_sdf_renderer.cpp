@@ -9,6 +9,8 @@ void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
 {
     ARenderer::init(engine);
 
+    camera = CameraController(glm::vec3(8, 8, -50), 90.0, 0.0f, 1 / glm::tan(glm::radians(55.0f / 2)));
+
     _renderColorTarget = ResourceRing<RenderImage>(_engine->swapchain.imageViews.size());
     _renderColorTarget.createEmplace(_engine->swapchain.imageViews.size(), engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
                                      vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eColor);
@@ -76,6 +78,7 @@ void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
 void VoxelSDFRenderer::update(float delta)
 {
     _time += delta;
+    camera.update(_engine->window, delta);
 }
 
 void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t flightFrame)
@@ -119,8 +122,10 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     ScreenQuadPush constants;
     constants.screenSize = glm::ivec2(renderRes.x, renderRes.y);
     constants.volumeBounds = glm::uvec3(16, 16, 16);
-    constants.camPos = glm::vec4(8, 8, -50, 1);
-    constants.camDir = glm::vec4(0, 0, 1, 0);
+    constants.camPos = glm::vec4(camera.position, 1);
+    constants.camDir = glm::vec4(camera.direction, 0);
+    constants.camUp = glm::vec4(camera.up, 0);
+    constants.camRight = glm::vec4(camera.right, 0);
     constants.time = _time;
     commandBuffer.pushConstants(_pipeline.layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
 

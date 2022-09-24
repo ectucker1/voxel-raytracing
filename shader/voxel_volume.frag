@@ -8,6 +8,8 @@ layout (push_constant) uniform constants
 {
     vec4 camPos;
     vec4 camDir;
+    vec4 camRight;
+    vec4 camUp;
     uvec3 volumeBounds;
     float time;
     ivec2 screenSize;
@@ -35,11 +37,11 @@ void main()
     vec2 screenPos = vScreenPos * 2.0 - 1.0;
 
     // Camera planes
-    vec3 cameraPlaneU = vec3(1.0, 0.0, 0.0);
-    vec3 cameraPlaneV = vec3(0.0, 1.0, 0.0) * pushConstants.screenSize.y / pushConstants.screenSize.x;
+    vec3 cameraPlaneU = pushConstants.camRight.xyz;
+    vec3 cameraPlaneV = pushConstants.camUp.xyz * pushConstants.screenSize.y / pushConstants.screenSize.x;
 
     // Ray direction
-    vec3 rayDir = normalize(pushConstants.camDir.xyz + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV);
+    vec3 rayDir = normalize(normalize(pushConstants.camDir.xyz) + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV);
 
     // TODO ray-box intersection to get start pos
 

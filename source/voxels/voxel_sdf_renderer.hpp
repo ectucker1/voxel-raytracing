@@ -3,10 +3,13 @@
 #include "voxel_sdf_pipeline.hpp"
 #include "engine/resource/texture_3d.hpp"
 #include "engine/resource/render_image.hpp"
+#include "voxels/camera_controller.hpp"
 
 class VoxelSDFRenderer : public ARenderer
 {
 private:
+    CameraController camera;
+
     glm::uvec2 renderRes = { 1920, 1080 };
     ResourceRing<RenderImage> _renderColorTarget;
     vk::RenderPass _renderColorPass;
