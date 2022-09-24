@@ -20,12 +20,21 @@ struct Material
     vec4 diffuse;
 };
 
+struct RayHit
+{
+    bool hit;
+    uint material;
+    vec3 pos;
+    vec3 normal;
+};
+
 layout (set = 0, binding = 0) uniform usampler3D scene;
 layout (set = 1, binding = 1) uniform Palette {
     Material materials[256];
 };
 
-const int MAX_RAY_STEPS = 64;
+const uint MAX_RAY_STEPS = 64;
+const uint AO_SAMPLES = 2;
 
 // Scene definition from volume
 uint getVoxel(ivec3 pos)
@@ -36,49 +45,77 @@ uint getVoxel(ivec3 pos)
     return val;
 }
 
-void main()
+// Generates a random number unique to this fragment
+// Based on https://stackoverflow.com/questions/5149544/can-i-generate-a-random-number-inside-a-pixel-shader
+// TODO replace with blue noise
+float fragmentRand(vec2 offset)
 {
-    vec3 lightPos = vec3(20.0, 20.0, -20.0);
-    vec3 lightColor = vec3(1.0, 1.0, 1.0);
+    vec2 p = gl_FragCoord.xy / vec2(1920, 1080) + offset;
+    vec2 K1 = vec2(
+        23.14069263277926,
+        2.665144142690225
+    );
+    return fract(cos(dot(p,K1)) * 12345.6789);
+}
 
-    // Screen position from -1.0 to 1.0
-    vec2 screenPos = vScreenPos * 2.0 - 1.0;
+// Generates a random direction within the unit sphere
+vec3 randomDir(float sampleOffset)
+{
+    float retryOffet;
+    vec3 dir;
+    for (uint i = 0; i < 5; i++)
+    {
+        vec3 dir = vec3(
+            fragmentRand(vec2(retryOffet, sampleOffset)),
+            fragmentRand(vec2(retryOffet, sampleOffset + 0.01)),
+            fragmentRand(vec2(retryOffet, sampleOffset + 0.02))
+        );
+        if (length(dir) <= 1)
+        {
+            return dir;
+        }
+        retryOffet += 0.01;
+    }
 
-    // Camera planes
-    vec3 cameraPlaneU = pushConstants.camRight.xyz;
-    vec3 cameraPlaneV = pushConstants.camUp.xyz * pushConstants.screenSize.y / pushConstants.screenSize.x;
+    return vec3(0, 1, 0);
+}
 
-    // Ray direction
-    vec3 rayDir = normalize(normalize(pushConstants.camDir.xyz) + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV);
+// Sky color interpolated from white to light blue
+vec4 skyColor(vec3 rayDir)
+{
+    float t = 0.5 * (rayDir.y + 1.0);
+    return (1.0 - t) * vec4(1.0, 1.0, 1.0, 1.0) + t * vec4(0.5, 0.7, 1.0, 1.0);
+}
 
-    // TODO ray-box intersection to get start pos
-
+RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
+{
     // Ray starting position
-    vec3 rayPos = pushConstants.camPos.xyz;
+    // TODO initial ray positon from box intersection
+    vec3 pos = start;
 
     // First voxel to sample
-    ivec3 mapPos = ivec3(floor(rayPos));
+    ivec3 mapPos = ivec3(floor(pos));
 
     // Portion of ray needed for ray to traverse a voxel in each direction
-    vec3 deltaDist = abs(1.0 / rayDir);
+    vec3 deltaDist = abs(1.0 / dir);
 
     // Integer position steps along ray
-    ivec3 rayStep = ivec3(sign(rayDir));
+    ivec3 rayStep = ivec3(sign(dir));
 
     // Distance ray can travel in each direction before crossing a boundary
-    vec3 sideDist = (sign(rayDir) * (vec3(mapPos) - rayPos) + (sign(rayDir) * 0.5) + 0.5) * deltaDist;
+    vec3 sideDist = (sign(dir) * (vec3(mapPos) - pos) + (sign(dir) * 0.5) + 0.5) * deltaDist;
 
-    bool hit = false;
-    uint mat = 0;
+    RayHit result;
+    result.hit = false;
     bvec3 mask;
-
-    for (int i = 0; i < MAX_RAY_STEPS; i++)
+    for (uint i = 0; i < maxSteps; i++)
     {
         // If we hit a voxel, break
-        mat = getVoxel(mapPos);
-        if (mat != 0)
+        // TODO terminate early if out of bounds
+        result.material = getVoxel(mapPos);
+        if (result.material != 0)
         {
-            hit = true;
+            result.hit = true;
             break;
         }
 
@@ -92,19 +129,62 @@ void main()
         mapPos += ivec3(vec3(mask)) * rayStep;
     }
 
-    if (hit)
-    {
-        float d = length(vec3(mask) * (sideDist - deltaDist));
-        vec3 pos = rayPos + d * rayDir;
-        vec3 normal = normalize(vec3(mask) * -vec3(rayStep));
-        vec3 lightDir = normalize(lightPos - pos);
+    // Calculate normal direction from final mask
+    result.normal = normalize(vec3(mask) * -vec3(rayStep));
 
-        float diff = max(dot(normal, lightDir), 0.0);
-        vec3 diffuse = diff * materials[mat].diffuse.rgb;
-        outColor.rgb = diffuse + vec3(0.1);
+    // Calculate the ending position from distance traveled
+    float d = length(vec3(mask) * (sideDist - deltaDist));
+    result.pos = pos + d * dir;
+
+    return result;
+}
+
+void main()
+{
+    // Screen position from -1.0 to 1.0
+    vec2 screenPos = vScreenPos * 2.0 - 1.0;
+
+    // Camera planes
+    vec3 cameraPlaneU = pushConstants.camRight.xyz;
+    vec3 cameraPlaneV = pushConstants.camUp.xyz * pushConstants.screenSize.y / pushConstants.screenSize.x;
+
+    // Ray direction
+    vec3 rayDir = normalize(normalize(pushConstants.camDir.xyz) + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV);
+
+    // Ray starting position
+    vec3 rayStart = pushConstants.camPos.xyz;
+
+    // Trace the ray
+    RayHit result = traceRay(rayStart, rayDir, MAX_RAY_STEPS);
+
+    if (result.hit)
+    {
+        // Get diffuse color
+        vec3 diffuseColor = materials[result.material].diffuse.rgb;
+
+        // Ambient color (to be calculated)
+        vec4 ambientColor = vec4(0.0);
+
+        // For each ambient occulsion sample
+        float sampleOffset = 0.0;
+        float sampleFrac = 1.0f / AO_SAMPLES;
+        for (uint i = 0; i < AO_SAMPLES; i++)
+        {
+            // Generate a random direction around the normal
+            vec3 dir = result.normal + randomDir(sampleOffset);
+            // Trace ray
+            RayHit hit = traceRay(result.pos + dir * 0.01, dir, MAX_RAY_STEPS);
+            // Add ambient color if hit
+            if (!hit.hit)
+                ambientColor += sampleFrac * skyColor(result.normal);
+            // Offset RNG for next sample
+            sampleOffset += 0.1;
+        }
+
+        outColor.rgb = diffuseColor * ambientColor.rgb;
     }
     else
     {
-        outColor.rgb = abs(rayDir);
+        outColor.rgb = skyColor(rayDir).rgb;
     }
 }
