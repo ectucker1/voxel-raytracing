@@ -3,7 +3,9 @@
 #include "engine/engine.hpp"
 #include "engine/shader_module.hpp"
 #include "engine/resource/texture_3d.hpp"
+#include "engine/resource/buffer.hpp"
 #include "voxels/screen_quad_push.hpp"
+#include "voxels/material.hpp"
 
 std::vector<vk::PipelineShaderStageCreateInfo> VoxelSDFPipeline::buildShaderStages()
 {
@@ -51,7 +53,7 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
     pushConstantRange->size = sizeof(ScreenQuadPush);
     pushConstantRange->stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
-    // Texture descriptor
+    // Scene texture descriptor layout
     vk::DescriptorSetLayoutBinding sceneDataBinding {};
     sceneDataBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
     sceneDataBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
@@ -65,34 +67,70 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
         _engine->logicalDevice.destroy(sceneDataLayout);
     });
 
-    // Descriptor sets
-    std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, sceneDataLayout);
+    // Scene texture descriptor set
+    std::vector<vk::DescriptorSetLayout> sceneDataLayouts(MAX_FRAMES_IN_FLIGHT, sceneDataLayout);
     vk::DescriptorSetAllocateInfo sceneDescriptorAllocInfo = {};
     sceneDescriptorAllocInfo.descriptorPool = _engine->descriptorPool;
     sceneDescriptorAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
-    sceneDescriptorAllocInfo.pSetLayouts = layouts.data();
+    sceneDescriptorAllocInfo.pSetLayouts = sceneDataLayouts.data();
     auto sceneDescriptorAllocResult = _engine->logicalDevice.allocateDescriptorSets(sceneDescriptorAllocInfo);
     sceneDataDescriptorSet = sceneDescriptorAllocResult.front();
-
+    descriptorSets.push_back(sceneDataDescriptorSet);
     vk::DescriptorImageInfo imageInfo {};
     imageInfo.sampler = sceneData->sampler;
     imageInfo.imageView = sceneData->imageView;
     imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-
     vk::WriteDescriptorSet sceneTextureWrite = {};
     sceneTextureWrite.dstBinding = 0;
     sceneTextureWrite.dstSet = sceneDataDescriptorSet;
     sceneTextureWrite.descriptorCount = 1;
     sceneTextureWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
     sceneTextureWrite.pImageInfo = &imageInfo;
-
     _engine->logicalDevice.updateDescriptorSets(1, &sceneTextureWrite, 0, nullptr);
+
+    // Palette descriptor layout
+    vk::DescriptorSetLayoutBinding paletteBinding {};
+    paletteBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    paletteBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+    paletteBinding.binding = 1;
+    paletteBinding.descriptorCount = 1;
+    vk::DescriptorSetLayoutCreateInfo paletteLayoutInfo {};
+    paletteLayoutInfo.bindingCount = 1;
+    paletteLayoutInfo.pBindings = &paletteBinding;
+    paletteLayout = _engine->logicalDevice.createDescriptorSetLayout(paletteLayoutInfo);
+    _engine->mainDeletionQueue.push_group([=]() {
+        _engine->logicalDevice.destroy(paletteLayout);
+    });
+
+    // Palette descriptor set
+    std::vector<vk::DescriptorSetLayout> paletteLayouts(MAX_FRAMES_IN_FLIGHT, paletteLayout);
+    vk::DescriptorSetAllocateInfo paletteDescriptorAllocInfo = {};
+    paletteDescriptorAllocInfo.descriptorPool = _engine->descriptorPool;
+    paletteDescriptorAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
+    paletteDescriptorAllocInfo.pSetLayouts = paletteLayouts.data();
+    auto paletteDescriptorAllocResult = _engine->logicalDevice.allocateDescriptorSets(paletteDescriptorAllocInfo);
+    paletteDescriptorSet = paletteDescriptorAllocResult.front();
+    descriptorSets.push_back(paletteDescriptorSet);
+    vk::DescriptorBufferInfo paletteBufferInfo {};
+    paletteBufferInfo.buffer = paletteBuffer->buffer;
+    paletteBufferInfo.offset = 0;
+    paletteBufferInfo.range = 256 * sizeof(Material);
+    vk::WriteDescriptorSet paletteBufferWrite = {};
+    paletteBufferWrite.dstBinding = 1;
+    paletteBufferWrite.dstSet = paletteDescriptorSet;
+    paletteBufferWrite.descriptorCount = 1;
+    paletteBufferWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+    paletteBufferWrite.pBufferInfo = &paletteBufferInfo;
+    _engine->logicalDevice.updateDescriptorSets(1, &paletteBufferWrite, 0, nullptr);
+
+    descriptorLayouts.push_back(sceneDataLayout);
+    descriptorLayouts.push_back(paletteLayout);
 
     vk::PipelineLayoutCreateInfo layoutInfo;
     layoutInfo.pPushConstantRanges = pushConstantRange.get();
     layoutInfo.pushConstantRangeCount = 1;
-    layoutInfo.setLayoutCount = 1;
-    layoutInfo.pSetLayouts = &sceneDataLayout;
+    layoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorLayouts.size());
+    layoutInfo.pSetLayouts = descriptorLayouts.data();
 
     return layoutInfo;
 }

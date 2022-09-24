@@ -15,17 +15,25 @@ layout (push_constant) uniform constants
     ivec2 screenSize;
 } pushConstants;
 
-layout (set = 0, binding = 0) uniform usampler3D scene;
+struct Material
+{
+    vec4 diffuse;
+};
 
-const int MAX_RAY_STEPS = 256;
+layout (set = 0, binding = 0) uniform usampler3D scene;
+layout (set = 1, binding = 1) uniform Palette {
+    Material materials[256];
+};
+
+const int MAX_RAY_STEPS = 64;
 
 // Scene definition from volume
-bool getVoxel(ivec3 pos)
+uint getVoxel(ivec3 pos)
 {
     if (pos.x > pushConstants.volumeBounds.x || pos.y > pushConstants.volumeBounds.y || pos.z > pushConstants.volumeBounds.z || pos.x < 0 || pos.y < 0 || pos.z < 0)
-        return false;
+        return 0;
     uint val = texture(scene, vec3(pos) / vec3(pushConstants.volumeBounds)).r;
-    return val > 0;
+    return val;
 }
 
 void main()
@@ -61,12 +69,14 @@ void main()
     vec3 sideDist = (sign(rayDir) * (vec3(mapPos) - rayPos) + (sign(rayDir) * 0.5) + 0.5) * deltaDist;
 
     bool hit = false;
+    uint mat = 0;
     bvec3 mask;
 
     for (int i = 0; i < MAX_RAY_STEPS; i++)
     {
         // If we hit a voxel, break
-        if (getVoxel(mapPos))
+        mat = getVoxel(mapPos);
+        if (mat != 0)
         {
             hit = true;
             break;
@@ -90,7 +100,7 @@ void main()
         vec3 lightDir = normalize(lightPos - pos);
 
         float diff = max(dot(normal, lightDir), 0.0);
-        vec3 diffuse = diff * lightColor;
+        vec3 diffuse = diff * materials[mat].diffuse.rgb;
         outColor.rgb = diffuse + vec3(0.1);
     }
     else

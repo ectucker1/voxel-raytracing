@@ -4,6 +4,8 @@
 #include "engine/commands/command_util.hpp"
 #include <glm/gtx/transform.hpp>
 #include "voxels/screen_quad_push.hpp"
+#include "voxels/material.hpp"
+#include "engine/resource/buffer.hpp"
 
 void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
 {
@@ -62,12 +64,33 @@ void VoxelSDFRenderer::init(const std::shared_ptr<Engine>& engine)
     uint8_t sceneData[16 * 16 * 16 * 1];
     for (int i = 0; i < 16 * 16 * 16 * 1; i++)
     {
-        sceneData[i] = rand() % 2;
+        bool present = rand() % 2;
+        uint8_t material = rand() % 16 + 1;
+        if (present)
+            sceneData[i] = material;
+        else
+            sceneData[i] = 0;
     }
     _sceneTexture->init(_engine, sceneData, 16, 16, 16, 1, vk::Format::eR8Uint);
 
+    std::array<Material, 256> paletteMaterials = {};
+    for (size_t m = 0; m < paletteMaterials.size(); m++)
+    {
+        paletteMaterials[m].diffuse = glm::vec4(float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, 1.0f);
+    }
+    _paletteBuffer = std::make_shared<Buffer>();
+    _paletteBuffer->init(_engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    void* paletteData;
+    vmaMapMemory(engine->allocator, _paletteBuffer->allocation, &paletteData);
+    memcpy(paletteData, paletteMaterials.data(), 256 * sizeof(Material));
+    vmaUnmapMemory(engine->allocator, _paletteBuffer->allocation);
+    engine->mainDeletionQueue.push_group([=] {
+        vmaDestroyBuffer(_engine->allocator, _paletteBuffer->buffer, _paletteBuffer->allocation);
+    });
+
     _pipeline = VoxelSDFPipeline();
     _pipeline.sceneData = _sceneTexture;
+    _pipeline.paletteBuffer = _paletteBuffer;
     _pipeline.init(_engine, _renderColorPass);
     _engine->mainDeletionQueue.push_group([&]() {
        _engine->logicalDevice.destroy(_pipeline.layout);
@@ -129,9 +152,9 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     constants.time = _time;
     commandBuffer.pushConstants(_pipeline.layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
 
-    // Bind texture descriptor set
+    // Bind descriptor sets
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline.layout,
-                                     0, 1, &_pipeline.sceneDataDescriptorSet,
+                                     0, 2, _pipeline.descriptorSets.data(),
                                      0, nullptr);
 
     commandBuffer.draw(6, 1, 0, 0);
