@@ -1,6 +1,15 @@
 #version 450
 
-layout (location = 0) out vec2 screenUV;
+layout (location = 0) out vec2 vScreenPos;
+
+layout (push_constant) uniform constants
+{
+    vec4 camPos;
+    vec4 camDir;
+    uvec3 volumeBounds;
+    float time;
+    ivec2 screenSize;
+} pushConstants;
 
 void main()
 {
@@ -16,6 +25,6 @@ void main()
         vec2(0.0f, 2.0f)
     );
 
-    screenUV = uvs[gl_VertexIndex];
+    vScreenPos = uvs[gl_VertexIndex];
     gl_Position = vec4(pos[gl_VertexIndex], 0.0f, 1.0f);
 }

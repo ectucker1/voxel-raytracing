@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include "engine/engine.hpp"
-#include "demo/voxel_sdf_renderer.hpp"
+#include "voxels/voxel_sdf_renderer.hpp"
 #include "demo/triangle_renderer.hpp"
 
 int run() {

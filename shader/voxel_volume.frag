@@ -1,33 +1,28 @@
 #version 450
 
-layout (location = 0) in vec2 screenUV;
+layout (location = 0) in vec2 vScreenPos;
 
 layout (location = 0) out vec4 outColor;
 
 layout (push_constant) uniform constants
 {
-    ivec2 screenSize;
+    vec4 camPos;
+    vec4 camDir;
+    uvec3 volumeBounds;
     float time;
+    ivec2 screenSize;
 } pushConstants;
 
 layout (set = 0, binding = 0) uniform usampler3D scene;
 
-const int MAX_RAY_STEPS = 64;
+const int MAX_RAY_STEPS = 256;
 
-mat2 rotate(float t)
+// Scene definition from volume
+bool getVoxel(ivec3 pos)
 {
-    return mat2(vec2(cos(t), sin(t)), vec2(-sin(t), cos(t)));
-}
-
-const uvec3 SCENE_SIZE = uvec3(16);
-
-// Scene definition as union of SDFs
-bool getVoxel(ivec3 coord)
-{
-    ivec3 pos = coord + ivec3(SCENE_SIZE) / 2;
-    if (pos.x > SCENE_SIZE.x || pos.y > SCENE_SIZE.y || pos.z > SCENE_SIZE.z || pos.x < 0 || pos.y < 0 || pos.z < 0)
+    if (pos.x > pushConstants.volumeBounds.x || pos.y > pushConstants.volumeBounds.y || pos.z > pushConstants.volumeBounds.z || pos.x < 0 || pos.y < 0 || pos.z < 0)
         return false;
-    uint val = texture(scene, vec3(pos) / vec3(SCENE_SIZE)).r;
+    uint val = texture(scene, vec3(pos) / vec3(pushConstants.volumeBounds)).r;
     return val > 0;
 }
 
@@ -37,23 +32,19 @@ void main()
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
 
     // Screen position from -1.0 to 1.0
-    vec2 screenPos = screenUV * 2.0 - 1.0;
-
-    // Camera direction and focal length
-    vec3 cameraDir = vec3(0.0, 0.0, 1.0);
+    vec2 screenPos = vScreenPos * 2.0 - 1.0;
 
     // Camera planes
     vec3 cameraPlaneU = vec3(1.0, 0.0, 0.0);
     vec3 cameraPlaneV = vec3(0.0, 1.0, 0.0) * pushConstants.screenSize.y / pushConstants.screenSize.x;
 
     // Ray direction
-    vec3 rayDir = normalize(cameraDir + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV);
-    // Ray starting position
-    vec3 rayPos = vec3(0.0, 0.0, -20.0);
+    vec3 rayDir = normalize(pushConstants.camDir.xyz + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV);
 
-    mat2 R = rotate(pushConstants.time / 5.0);
-    rayPos.xz = R * rayPos.xz;
-    rayDir.xz = R * rayDir.xz;
+    // TODO ray-box intersection to get start pos
+
+    // Ray starting position
+    vec3 rayPos = pushConstants.camPos.xyz;
 
     // First voxel to sample
     ivec3 mapPos = ivec3(floor(rayPos));
@@ -102,6 +93,6 @@ void main()
     }
     else
     {
-        outColor.rgb = vec3(0.0);
+        outColor.rgb = abs(rayDir);
     }
 }

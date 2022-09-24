@@ -36,6 +36,20 @@ public:
         }
     }
 
+    // Fills the ring with n resources.
+    // These resources are created by the given create function.
+    template<class... Args>
+    void createEmplace(size_t n, Args&&... args)
+    {
+        if (_ring.size() > 0)
+            throw std::runtime_error("Cannot create already initialized ResourceRing");
+        _ring.reserve(n);
+        for (size_t i = 0; i < n; i++)
+        {
+            _ring.emplace_back(std::forward<Args>(args)...);
+        }
+    }
+
     // Destroys all resources in the ring, using the given destructor function.
     void destroy(const std::function<void(T)>& destroy)
     {

@@ -2,13 +2,13 @@
 
 #include "engine/engine.hpp"
 #include "engine/shader_module.hpp"
-#include "demo/screen_quad_push.hpp"
 #include "engine/resource/texture_3d.hpp"
+#include "voxels/screen_quad_push.hpp"
 
 std::vector<vk::PipelineShaderStageCreateInfo> VoxelSDFPipeline::buildShaderStages()
 {
     vertexModule = std::make_unique<ShaderModule>(_engine, "../shader/screen_quad.vert.spv", vk::ShaderStageFlagBits::eVertex);
-    fragmentModule = std::make_unique<ShaderModule>(_engine, "../shader/voxel_sdf_toy.frag.spv", vk::ShaderStageFlagBits::eFragment);
+    fragmentModule = std::make_unique<ShaderModule>(_engine, "../shader/voxel_volume.frag.spv", vk::ShaderStageFlagBits::eFragment);
 
     vertexModule->load();
     fragmentModule->load();
@@ -27,10 +27,10 @@ std::vector<vk::PipelineShaderStageCreateInfo> VoxelSDFPipeline::buildShaderStag
 
 vk::PipelineVertexInputStateCreateInfo VoxelSDFPipeline::buildVertexInputInfo()
 {
-    // No inputs needed for the fullscreen triangle
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+
     return vertexInputInfo;
 }
 
@@ -49,7 +49,7 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
     pushConstantRange = std::make_unique<vk::PushConstantRange>();
     pushConstantRange->offset = 0;
     pushConstantRange->size = sizeof(ScreenQuadPush);
-    pushConstantRange->stageFlags = vk::ShaderStageFlagBits::eFragment;
+    pushConstantRange->stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
     // Texture descriptor
     vk::DescriptorSetLayoutBinding sceneDataBinding {};

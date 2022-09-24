@@ -33,13 +33,18 @@ add_custom_command(
 )
 
 # Compile each shader in the list
+cmake_policy(SET CMP0116 NEW) # CMake policy 0116 - use paths relative to CMAKE_CURRENT_BINARY_DIR for Ninja depfiles
 foreach(source IN LISTS SHADER_SOURCES)
     get_filename_component(FILENAME ${source} NAME)
     add_custom_command(
-        COMMAND ${glslc_executable} -o ${SHADER_BINARY_DIR}/${FILENAME}.spv ${source}
+        COMMAND
+            ${glslc_executable}
+            -MD -MF ${FILENAME}.d
+            -o ${SHADER_BINARY_DIR}/${FILENAME}.spv ${source}
         OUTPUT ${SHADER_BINARY_DIR}/${FILENAME}.spv
-        DEPENDS ${source} ${SHADER_BINARY_DIR}
-        COMMENT "Compiling shader ${FILENAME}"
+        DEPENDS ${FILENAME} ${SHADER_BINARY_DIR}
+        DEPFILE ${FILENAME}.d
+        COMMENT "Building shader ${FILENAME}.spv"
     )
     list(APPEND SHADER_SPV ${SHADER_BINARY_DIR}/${FILENAME}.spv)
 endforeach()
