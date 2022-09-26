@@ -173,7 +173,7 @@ void main()
             // Generate a random direction around the normal
             vec3 dir = result.normal + randomDir(sampleOffset);
             // Trace ray
-            RayHit hit = traceRay(result.pos + dir * 0.01, dir, MAX_RAY_STEPS);
+            RayHit hit = traceRay(result.pos + dir * 0.01, dir, 64);
             // Add ambient color if hit
             if (!hit.hit)
                 ambientColor += sampleFrac * skyColor(result.normal);

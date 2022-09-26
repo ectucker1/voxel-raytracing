@@ -5,8 +5,8 @@
 
 Texture3D::Texture3D(const std::shared_ptr<Engine>& engine,
                      void* imageData,
-                     uint32_t width, uint32_t height, uint32_t depth,
-                     uint32_t pixelSize, vk::Format imageFormat)
+                     size_t width, size_t height, size_t depth,
+                     size_t pixelSize, vk::Format imageFormat)
                      : AResource(engine), width(width), height(height), depth(depth)
 {
     vk::DeviceSize imageSize = width * height * depth * pixelSize;
@@ -19,9 +19,9 @@ Texture3D::Texture3D(const std::shared_ptr<Engine>& engine,
 
     // Extents
     vk::Extent3D imageExtent;
-    imageExtent.width = width;
-    imageExtent.height = height;
-    imageExtent.depth = depth;
+    imageExtent.width = static_cast<uint32_t>(width);
+    imageExtent.height = static_cast<uint32_t>(height);
+    imageExtent.depth = static_cast<uint32_t>(depth);
 
     // Image create info
     vk::ImageCreateInfo imageInfo = {};

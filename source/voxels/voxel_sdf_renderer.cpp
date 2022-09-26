@@ -7,6 +7,8 @@
 #include "voxels/material.hpp"
 #include "engine/resource/buffer.hpp"
 
+const glm::uvec3 AREA_SIZE = glm::uvec3(16, 16, 16);
+
 VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
     camera = CameraController(glm::vec3(8, 8, -50), 90.0, 0.0f, 1 / glm::tan(glm::radians(55.0f / 2)));
@@ -57,8 +59,9 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
         });
     });
 
-    uint8_t sceneData[16 * 16 * 16 * 1];
-    for (int i = 0; i < 16 * 16 * 16 * 1; i++)
+    size_t size = size_t(AREA_SIZE.x) * size_t(AREA_SIZE.y) * size_t(AREA_SIZE.z);
+    std::vector<uint8_t> sceneData = std::vector<uint8_t>(size);
+    for (size_t i = 0; i < size; i++)
     {
         bool present = rand() % 2;
         uint8_t material = rand() % 16 + 1;
@@ -67,7 +70,7 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
         else
             sceneData[i] = 0;
     }
-    _sceneTexture = std::make_shared<Texture3D>(engine, sceneData, 16, 16, 16, 1, vk::Format::eR8Uint);
+    _sceneTexture = std::make_shared<Texture3D>(engine, sceneData.data(), AREA_SIZE.x, AREA_SIZE.y, AREA_SIZE.z, 1, vk::Format::eR8Uint);
 
     std::array<Material, 256> paletteMaterials = {};
     for (size_t m = 0; m < paletteMaterials.size(); m++)
@@ -127,7 +130,7 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     // Set push constants
     ScreenQuadPush constants;
     constants.screenSize = glm::ivec2(renderRes.x, renderRes.y);
-    constants.volumeBounds = glm::uvec3(16, 16, 16);
+    constants.volumeBounds = AREA_SIZE;
     constants.camPos = glm::vec4(camera.position, 1);
     constants.camDir = glm::vec4(camera.direction, 0);
     constants.camUp = glm::vec4(camera.up, 0);

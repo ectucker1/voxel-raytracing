@@ -9,7 +9,7 @@ class Engine;
 class Texture3D : public AResource
 {
 public:
-    uint32_t width, height, depth = 0;
+    size_t width, height, depth = 0;
 
     vk::Image image;
     vk::ImageView imageView;
@@ -21,6 +21,6 @@ private:
 public:
     Texture3D(const std::shared_ptr<Engine>& engine,
               void* imageData,
-              uint32_t width, uint32_t height, uint32_t depth,
-              uint32_t pixelSize, vk::Format imageFormat);
+              size_t width, size_t height, size_t depth,
+              size_t pixelSize, vk::Format imageFormat);
 };
