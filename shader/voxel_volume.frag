@@ -29,10 +29,10 @@ struct RayHit
 };
 
 layout (set = 0, binding = 0) uniform usampler3D scene;
-layout (set = 1, binding = 1) uniform Palette {
+layout (set = 0, binding = 1) uniform Palette {
     Material materials[256];
 };
-layout (set = 2, binding = 2) uniform sampler2D blueNoise;
+layout (set = 0, binding = 2) uniform sampler2D blueNoise;
 
 const uint MAX_RAY_STEPS = 64;
 const uint AO_SAMPLES = 4;

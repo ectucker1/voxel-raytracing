@@ -10,6 +10,8 @@ class Buffer : public AResource
 {
 public:
     vk::Buffer buffer;
+    size_t size;
+
 private:
     VmaAllocation allocation;
 

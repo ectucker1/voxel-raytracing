@@ -4,7 +4,7 @@
 
 Buffer::Buffer(const std::shared_ptr<Engine>& engine,
                size_t size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage)
-               : AResource(engine)
+               : AResource(engine), size(size)
 {
     vk::BufferCreateInfo bufferInfo = {};
     bufferInfo.size = size;
@@ -23,10 +23,10 @@ Buffer::Buffer(const std::shared_ptr<Engine>& engine,
     });
 }
 
-void Buffer::copyData(void* data, size_t size) const
+void Buffer::copyData(void* data, size_t length) const
 {
     void* bufferData;
     vmaMapMemory(engine->allocator, allocation, &bufferData);
-    std::memcpy(bufferData, data, size);
+    std::memcpy(bufferData, data, length);
     vmaUnmapMemory(engine->allocator, allocation);
 }

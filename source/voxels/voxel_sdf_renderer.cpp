@@ -83,8 +83,11 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     _paletteBuffer = std::make_shared<Buffer>(engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _paletteBuffer->copyData(paletteMaterials.data(), 256 * sizeof(Material));
 
-    _pipeline = std::make_unique<VoxelSDFPipeline>(engine, _renderColorPass, _sceneTexture, _paletteBuffer, _noiseTexture);
+    _pipeline = std::make_unique<VoxelSDFPipeline>(engine, _renderColorPass);
     _pipeline->init();
+    _pipeline->descriptorSet.initImage(0, _sceneTexture->imageView, _sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+    _pipeline->descriptorSet.initBuffer(1, _paletteBuffer->buffer, _paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
+    _pipeline->descriptorSet.initImage(2, _noiseTexture->imageView, _noiseTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
 void VoxelSDFRenderer::update(float delta)
@@ -143,8 +146,8 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
 
     // Bind descriptor sets
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline->layout,
-                                     0, static_cast<uint32_t>(_pipeline->descriptorSets.size()),
-                                     _pipeline->descriptorSets.data(),
+                                     0, 1,
+                                     _pipeline->descriptorSet.getSet(flightFrame),
                                      0, nullptr);
 
     commandBuffer.draw(6, 1, 0, 0);
