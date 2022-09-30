@@ -7,6 +7,7 @@ find_package(vulkan-memory-allocator CONFIG)
 find_package(glfw3 CONFIG)
 find_package(fmt CONFIG)
 find_package(glm CONFIG)
+find_package(stb CONFIG)
 
 # Glob for source files
 file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
@@ -26,6 +27,7 @@ target_link_libraries(voxels_lib
     glfw
     fmt::fmt
     glm::glm
+    stb::stb
 )
 
 # Define library include options

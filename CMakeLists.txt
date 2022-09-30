@@ -22,6 +22,7 @@ conan_cmake_configure(
         glfw/3.3.8
         glm/0.9.9.8
         fmt/8.1.1
+        stb/cci.20210910
         catch2/2.13.9
     GENERATORS
         cmake_find_package_multi

@@ -16,6 +16,7 @@ private:
     ResourceRing<vk::Framebuffer> _renderColorFramebuffer;
 
     std::shared_ptr<Texture3D> _sceneTexture;
+    std::shared_ptr<Texture2D> _noiseTexture;
     std::shared_ptr<Buffer> _paletteBuffer;
     std::unique_ptr<VoxelSDFPipeline> _pipeline;
 

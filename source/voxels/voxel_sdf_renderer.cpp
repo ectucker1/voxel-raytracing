@@ -6,6 +6,7 @@
 #include "voxels/screen_quad_push.hpp"
 #include "voxels/material.hpp"
 #include "engine/resource/buffer.hpp"
+#include "engine/resource/texture_2d.hpp"
 
 const glm::uvec3 AREA_SIZE = glm::uvec3(16, 16, 16);
 
@@ -72,6 +73,8 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     }
     _sceneTexture = std::make_shared<Texture3D>(engine, sceneData.data(), AREA_SIZE.x, AREA_SIZE.y, AREA_SIZE.z, 1, vk::Format::eR8Uint);
 
+    _noiseTexture = std::make_shared<Texture2D>(engine, "../resource/blue_noise_rgba.png", 4, vk::Format::eR8G8B8A8Unorm);
+
     std::array<Material, 256> paletteMaterials = {};
     for (size_t m = 0; m < paletteMaterials.size(); m++)
     {
@@ -80,7 +83,7 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     _paletteBuffer = std::make_shared<Buffer>(engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _paletteBuffer->copyData(paletteMaterials.data(), 256 * sizeof(Material));
 
-    _pipeline = std::make_unique<VoxelSDFPipeline>(engine, _renderColorPass, _sceneTexture, _paletteBuffer);
+    _pipeline = std::make_unique<VoxelSDFPipeline>(engine, _renderColorPass, _sceneTexture, _paletteBuffer, _noiseTexture);
     _pipeline->init();
 }
 
@@ -140,7 +143,8 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
 
     // Bind descriptor sets
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline->layout,
-                                     0, 2, _pipeline->descriptorSets.data(),
+                                     0, static_cast<uint32_t>(_pipeline->descriptorSets.size()),
+                                     _pipeline->descriptorSets.data(),
                                      0, nullptr);
 
     commandBuffer.draw(6, 1, 0, 0);

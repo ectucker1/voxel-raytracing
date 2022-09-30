@@ -32,9 +32,12 @@ layout (set = 0, binding = 0) uniform usampler3D scene;
 layout (set = 1, binding = 1) uniform Palette {
     Material materials[256];
 };
+layout (set = 2, binding = 2) uniform sampler2D blueNoise;
 
 const uint MAX_RAY_STEPS = 64;
-const uint AO_SAMPLES = 2;
+const uint AO_SAMPLES = 4;
+const uvec2 SCREEN_SIZE = uvec2(1920, 1080);
+const uvec2 NOISE_SIZE = uvec2(512, 512);
 
 // Scene definition from volume
 uint getVoxel(ivec3 pos)
@@ -45,39 +48,21 @@ uint getVoxel(ivec3 pos)
     return val;
 }
 
-// Generates a random number unique to this fragment
-// Based on https://stackoverflow.com/questions/5149544/can-i-generate-a-random-number-inside-a-pixel-shader
-// TODO replace with blue noise
-float fragmentRand(vec2 offset)
+// Generates a random number unique to this fragment from
+vec3 fragmentNoiseSeq(uint num)
 {
-    vec2 p = gl_FragCoord.xy / vec2(1920, 1080) + offset;
-    vec2 K1 = vec2(
-        23.14069263277926,
-        2.665144142690225
-    );
-    return fract(cos(dot(p,K1)) * 12345.6789);
+    // Constants inspired by http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+    const float g = 1.22074408460575947536;
+    const vec3 a = vec3(1.0 / g, 1.0 / (g * g), 1.0 / (g * g * g));
+    vec2 p = gl_FragCoord.xy / NOISE_SIZE + vec2(0.5, 0.5);
+    vec3 noise = texture(blueNoise, p).rgb;
+    return mod(noise + num * a, 1.0);
 }
 
 // Generates a random direction within the unit sphere
-vec3 randomDir(float sampleOffset)
+vec3 randomDir(uint num)
 {
-    float retryOffet;
-    vec3 dir;
-    for (uint i = 0; i < 5; i++)
-    {
-        vec3 dir = vec3(
-            fragmentRand(vec2(retryOffet, sampleOffset)),
-            fragmentRand(vec2(retryOffet, sampleOffset + 0.01)),
-            fragmentRand(vec2(retryOffet, sampleOffset + 0.02))
-        );
-        if (length(dir) <= 1)
-        {
-            return dir;
-        }
-        retryOffet += 0.01;
-    }
-
-    return vec3(0, 1, 0);
+    return normalize(fragmentNoiseSeq(num) * 2.0 - vec3(1.0));
 }
 
 // Sky color interpolated from white to light blue
@@ -166,19 +151,16 @@ void main()
         vec4 ambientColor = vec4(0.0);
 
         // For each ambient occulsion sample
-        float sampleOffset = 0.0;
         float sampleFrac = 1.0f / AO_SAMPLES;
         for (uint i = 0; i < AO_SAMPLES; i++)
         {
             // Generate a random direction around the normal
-            vec3 dir = result.normal + randomDir(sampleOffset);
+            vec3 dir = result.normal + randomDir(i);
             // Trace ray
             RayHit hit = traceRay(result.pos + dir * 0.01, dir, 64);
             // Add ambient color if hit
             if (!hit.hit)
                 ambientColor += sampleFrac * skyColor(result.normal);
-            // Offset RNG for next sample
-            sampleOffset += 0.1;
         }
 
         outColor.rgb = diffuseColor * ambientColor.rgb;

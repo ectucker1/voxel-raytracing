@@ -3,6 +3,7 @@
 #include "engine/engine.hpp"
 #include "engine/resource/shader_module.hpp"
 #include "engine/resource/texture_3d.hpp"
+#include "engine/resource/texture_2d.hpp"
 #include "engine/resource/buffer.hpp"
 #include "voxels/screen_quad_push.hpp"
 #include "voxels/material.hpp"
@@ -120,8 +121,44 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
     paletteBufferWrite.pBufferInfo = &paletteBufferInfo;
     engine->device.updateDescriptorSets(1, &paletteBufferWrite, 0, nullptr);
 
+    // Blue noise texture descriptor layout
+    vk::DescriptorSetLayoutBinding blueNoiseBinding {};
+    blueNoiseBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    blueNoiseBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+    blueNoiseBinding.binding = 2;
+    blueNoiseBinding.descriptorCount = 1;
+    vk::DescriptorSetLayoutCreateInfo blueNoiseLayoutInfo {};
+    blueNoiseLayoutInfo.bindingCount = 1;
+    blueNoiseLayoutInfo.pBindings = &blueNoiseBinding;
+    blueNoiseLayout = engine->device.createDescriptorSetLayout(blueNoiseLayoutInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
+        engine->device.destroy(blueNoiseLayout);
+    });
+
+    // Blue noise texture descriptor set
+    std::vector<vk::DescriptorSetLayout> blueNoiseLayouts(MAX_FRAMES_IN_FLIGHT, blueNoiseLayout);
+    vk::DescriptorSetAllocateInfo blueNoiseDescriptorAllocInfo = {};
+    blueNoiseDescriptorAllocInfo.descriptorPool = engine->descriptorPool;
+    blueNoiseDescriptorAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
+    blueNoiseDescriptorAllocInfo.pSetLayouts = blueNoiseLayouts.data();
+    auto blueNoiseDescriptorAllocResult = engine->device.allocateDescriptorSets(blueNoiseDescriptorAllocInfo);
+    blueNoiseDescriptorSet = blueNoiseDescriptorAllocResult.front();
+    descriptorSets.push_back(blueNoiseDescriptorSet);
+    vk::DescriptorImageInfo noiseImageInfo {};
+    noiseImageInfo.sampler = blueNoise->sampler;
+    noiseImageInfo.imageView = blueNoise->imageView;
+    noiseImageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    vk::WriteDescriptorSet noiseTextureWrite = {};
+    noiseTextureWrite.dstBinding = 2;
+    noiseTextureWrite.dstSet = blueNoiseDescriptorSet;
+    noiseTextureWrite.descriptorCount = 1;
+    noiseTextureWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    noiseTextureWrite.pImageInfo = &noiseImageInfo;
+    engine->device.updateDescriptorSets(1, &noiseTextureWrite, 0, nullptr);
+
     descriptorLayouts.push_back(sceneDataLayout);
     descriptorLayouts.push_back(paletteLayout);
+    descriptorLayouts.push_back(blueNoiseLayout);
 
     vk::PipelineLayoutCreateInfo layoutInfo;
     layoutInfo.pPushConstantRanges = pushConstantRange.get();
