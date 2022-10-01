@@ -1,10 +1,11 @@
 #pragma once
 
 #include <memory>
-#include "engine/pipeline.hpp"
+#include <optional>
+#include "engine/pipeline/pipeline.hpp"
 #include "engine/resource/shader_module.hpp"
 #include "util/resource_ring.hpp"
-#include "engine/descriptor_set.hpp"
+#include "engine/pipeline/descriptor_set.hpp"
 
 class Texture3D;
 class Texture2D;
@@ -13,16 +14,18 @@ class Buffer;
 class VoxelSDFPipeline : public APipeline
 {
 public:
-    DescriptorSet descriptorSet;
+    std::optional<DescriptorSet> descriptorSet;
 
 private:
-    std::unique_ptr<ShaderModule> vertexModule;
-    std::unique_ptr<ShaderModule> fragmentModule;
-    std::unique_ptr<vk::PushConstantRange> pushConstantRange;
+    std::optional<ShaderModule> vertexModule;
+    std::optional<ShaderModule> fragmentModule;
+    std::optional<vk::PushConstantRange> pushConstantRange;
+
+protected:
+    VoxelSDFPipeline(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass) : APipeline(engine, pass) {};
 
 public:
-    VoxelSDFPipeline(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass)
-                     : APipeline(engine, pass), descriptorSet(engine) {};
+    static VoxelSDFPipeline build(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass);
 
 protected:
     virtual std::vector<vk::PipelineShaderStageCreateInfo> buildShaderStages() override;

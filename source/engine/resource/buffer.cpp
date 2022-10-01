@@ -18,8 +18,11 @@ Buffer::Buffer(const std::shared_ptr<Engine>& engine,
     auto res = vmaCreateBuffer(engine->allocator, &bufferInfoC, &allocInfo, &outBufferC, &allocation, nullptr);
     vk::resultCheck(vk::Result(res), "Error creating buffer");
     buffer = outBufferC;
-    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
-        vmaDestroyBuffer(engine->allocator, buffer, allocation);
+
+    vk::Buffer localBuffer = buffer;
+    VmaAllocation localAllocation = allocation;
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        vmaDestroyBuffer(delEngine->allocator, localBuffer, localAllocation);
     });
 }
 

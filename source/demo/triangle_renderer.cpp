@@ -5,7 +5,7 @@
 TriangleRenderer::TriangleRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
     _pipeline = std::make_unique<TrianglePipeline>(engine, _windowRenderPass);
-    _pipeline->init();
+    _pipeline->buildAll();
 }
 
 void TriangleRenderer::update(float delta)

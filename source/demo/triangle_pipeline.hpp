@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "engine/pipeline.hpp"
+#include "engine/pipeline/pipeline.hpp"
 #include "engine/resource/shader_module.hpp"
 
 class TrianglePipeline

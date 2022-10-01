@@ -10,13 +10,20 @@ class Engine;
 // - Will queue independent deletors for all created Vulkan handles under the deletorGroup.
 class AResource
 {
+private:
+    uint32_t deletorGroup;
+
 protected:
     std::shared_ptr<Engine> engine;
-    uint32_t deletorGroup;
 
 public:
     // Creates a new resource.
     AResource(const std::shared_ptr<Engine>& engine);
+
+    // Pushes a deletor to this resource's group, which includes a local pointer to the engine.
+    // This wrapper is necessary so we don't lose the reference to the engine.
+    void pushDeletor(std::function<void(const std::shared_ptr<Engine>& engine)> deletor);
+
     // Destroys this resource.
     // This relies on the engine's deletion queue for the deletor group.
     void destroy();

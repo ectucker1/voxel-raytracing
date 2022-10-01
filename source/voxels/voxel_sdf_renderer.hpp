@@ -4,6 +4,8 @@
 #include "util/resource_ring.hpp"
 #include "voxel_sdf_pipeline.hpp"
 #include "engine/resource/texture_3d.hpp"
+#include "engine/resource/texture_2d.hpp"
+#include "engine/resource/buffer.hpp"
 #include "engine/resource/render_image.hpp"
 #include "voxels/camera_controller.hpp"
 
@@ -13,14 +15,14 @@ private:
     CameraController camera;
 
     glm::uvec2 renderRes = { 1920, 1080 };
-    std::shared_ptr<RenderImage> _renderColorTarget;
+    std::optional<RenderImage> _renderColorTarget;
     vk::RenderPass _renderColorPass;
     vk::Framebuffer _renderColorFramebuffer;
 
-    std::shared_ptr<Texture3D> _sceneTexture;
-    std::shared_ptr<Texture2D> _noiseTexture;
-    std::shared_ptr<Buffer> _paletteBuffer;
-    std::unique_ptr<VoxelSDFPipeline> _pipeline;
+    std::optional<Texture3D> _sceneTexture;
+    std::optional<Texture2D> _noiseTexture;
+    std::optional<Buffer> _paletteBuffer;
+    std::optional<VoxelSDFPipeline> _pipeline;
 
     float _time = 0;
 

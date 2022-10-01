@@ -111,8 +111,9 @@ Texture2D::Texture2D(const std::shared_ptr<Engine>& engine,
                             1, &imageBarrierShader);
     });
 
-    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
-        vmaDestroyImage(engine->allocator, image, allocation);
+    VmaAllocation localAllocation = allocation;
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        vmaDestroyImage(delEngine->allocator, imageC, localAllocation);
     });
     stagingBuffer.destroy();
 
@@ -126,9 +127,10 @@ Texture2D::Texture2D(const std::shared_ptr<Engine>& engine,
     imageViewInfo.subresourceRange.levelCount = 1;
     imageViewInfo.subresourceRange.baseArrayLayer = 0;
     imageViewInfo.subresourceRange.layerCount = 1;
-    imageView = engine->device.createImageView(imageViewInfo);
-    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
-        engine->device.destroy(imageView);
+    vk::ImageView createdImageView = engine->device.createImageView(imageViewInfo);
+    imageView = createdImageView;
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->device.destroy(createdImageView);
     });
 
     // Create sampler
@@ -138,8 +140,9 @@ Texture2D::Texture2D(const std::shared_ptr<Engine>& engine,
     samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
     samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
     samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-    sampler = engine->device.createSampler(samplerInfo);
-    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
-        engine->device.destroy(sampler);
+    vk::Sampler createdSampler = engine->device.createSampler(samplerInfo);
+    sampler = createdSampler;
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->device.destroy(createdSampler);
     });
 }

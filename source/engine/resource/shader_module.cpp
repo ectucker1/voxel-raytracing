@@ -25,9 +25,10 @@ ShaderModule::ShaderModule(const std::shared_ptr<Engine>& engine, const std::str
     vk::ShaderModuleCreateInfo shaderCreateInfo;
     shaderCreateInfo.codeSize = buffer.size() * sizeof(uint32_t);
     shaderCreateInfo.pCode = buffer.data();
-    _shaderModule = engine->device.createShaderModule(shaderCreateInfo);
-    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
-        engine->device.destroyShaderModule(_shaderModule);
+    vk::ShaderModule createdModule = engine->device.createShaderModule(shaderCreateInfo);
+    _shaderModule = createdModule;
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->device.destroyShaderModule(createdModule);
     });
 }
 

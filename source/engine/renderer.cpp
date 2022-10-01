@@ -36,8 +36,8 @@ void ARenderer::initWindowRenderPass()
     renderPassInfo.pSubpasses = &subpass;
 
     _windowRenderPass = engine->device.createRenderPass(renderPassInfo);
-    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
-        engine->device.destroyRenderPass(_windowRenderPass);
+    pushDeletor([&](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->device.destroyRenderPass(_windowRenderPass);
     });
 }
 

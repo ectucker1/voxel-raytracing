@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/resource.hpp"
+#include "engine/resource_builder.hpp"
 #include "util/resource_ring.hpp"
 #include <vulkan/vulkan.hpp>
 
@@ -12,25 +13,17 @@ class DescriptorSet : AResource
 public:
     // The layout of the descriptor set
     vk::DescriptorSetLayout layout;
-
-private:
-    // Bindings internally used to build the descriptor set
-    std::vector<vk::DescriptorSetLayoutBinding> bindings;
-
     // The actual descriptor set for each frame
     ResourceRing<vk::DescriptorSet> sets;
 
-public:
+protected:
     // Creates a new descriptor set.
-    // Initialization is not complete until build() is called.
-    DescriptorSet(const std::shared_ptr<Engine>& engine) : AResource(engine) {}
+    // Initialization will be completed by the friend builder.
+    explicit DescriptorSet(const std::shared_ptr<Engine>& engine) : AResource(engine) {}
 
-    void bindBuffer(uint32_t binding, vk::ShaderStageFlags stages, vk::DescriptorType type);
-    void bindImage(uint32_t binding, vk::ShaderStageFlags stages);
+    friend class DescriptorSetBuilder;
 
-    // Builds this descriptor set using the bindings.
-    void build();
-
+public:
     // Returns a pointer to the next descriptor set for a given frame.
     const vk::DescriptorSet* getSet(uint32_t frame) const;
 
@@ -45,4 +38,24 @@ public:
     void initBuffer(uint32_t binding, vk::Buffer buffer, vk::DeviceSize size, vk::DescriptorType type) const;
     // Writes image data to the descriptor set for all frames.
     void initImage(uint32_t binding, vk::ImageView imageView, vk::Sampler sampler, vk::ImageLayout layout) const;
+};
+
+// Builder for descriptor sets.
+class DescriptorSetBuilder : ResourceBuilder<DescriptorSet>
+{
+private:
+    // Bindings internally used to build the descriptor set
+    std::vector<vk::DescriptorSetLayoutBinding> bindings;
+
+public:
+    // Begins the descriptor set builder.
+    explicit DescriptorSetBuilder(const std::shared_ptr<Engine>& engine) : ResourceBuilder<DescriptorSet>(engine) {}
+
+    // Adds a buffer descriptor at the given binding.
+    DescriptorSetBuilder& buffer(uint32_t binding, vk::ShaderStageFlags stages, vk::DescriptorType type);
+    // Adds an image descriptor at the given binding.
+    DescriptorSetBuilder& image(uint32_t binding, vk::ShaderStageFlags stages);
+
+    // Builds the descriptor set.
+    DescriptorSet build() override;
 };

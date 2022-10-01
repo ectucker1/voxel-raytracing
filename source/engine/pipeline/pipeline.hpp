@@ -28,7 +28,7 @@ protected:
     APipeline::APipeline(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass);
 
 public:
-    void init();
+    void buildAll();
 
 protected:
     virtual std::vector<vk::PipelineShaderStageCreateInfo> buildShaderStages() = 0;

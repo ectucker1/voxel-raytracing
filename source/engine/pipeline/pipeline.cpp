@@ -5,7 +5,7 @@
 APipeline::APipeline(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass)
     : AResource(engine), pass(pass) {}
 
-void APipeline::init()
+void APipeline::buildAll()
 {
     // Create prerequisite pipeline infos
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = buildShaderStages();
@@ -19,9 +19,10 @@ void APipeline::init()
     vk::PipelineLayoutCreateInfo layoutInfo = buildPipelineLayout();
 
     // Create layout
-    layout = engine->device.createPipelineLayout(layoutInfo);
-    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
-        engine->device.destroy(layout);
+    vk::PipelineLayout createdLayout = engine->device.createPipelineLayout(layoutInfo);
+    layout = createdLayout;
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->device.destroy(createdLayout);
     });
 
     // Group together create info
@@ -42,9 +43,10 @@ void APipeline::init()
     // Actually build the pipeline
     auto pipelineResult = engine->device.createGraphicsPipeline(VK_NULL_HANDLE, pipelineInfo);
     vk::resultCheck(pipelineResult.result, "Error creating graphics pipeline");
-    pipeline = pipelineResult.value;
-    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
-        engine->device.destroy(pipeline);
+    vk::Pipeline createdPipeline = pipelineResult.value;
+    pipeline = createdPipeline;
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->device.destroy(createdPipeline);
     });
 
     pipelineDeletionQueue.destroy_all();
