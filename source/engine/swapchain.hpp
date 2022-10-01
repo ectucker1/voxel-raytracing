@@ -20,5 +20,5 @@ public:
 public:
     void init(const std::shared_ptr<Engine>& engine);
 
-    size_t size();
+    uint32_t size();
 };

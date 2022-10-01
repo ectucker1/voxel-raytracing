@@ -50,8 +50,8 @@ void ARenderer::initWindowFramebuffers()
     framebufferInfo.height = engine->windowSize.y;
     framebufferInfo.layers = 1;
 
-    size_t imageCount = engine->swapchain.size();
-    _windowFramebuffers = ResourceRing<vk::Framebuffer>::fromFunc(imageCount, [&](size_t i) {
+    uint32_t imageCount = static_cast<uint32_t>(engine->swapchain.size());
+    _windowFramebuffers = ResourceRing<vk::Framebuffer>::fromFunc(imageCount, [&](uint32_t i) {
         framebufferInfo.pAttachments = &engine->swapchain.imageViews[i];
         return engine->device.createFramebuffer(framebufferInfo);
     });

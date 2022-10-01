@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/resource.hpp"
+#include "util/resource_ring.hpp"
 #include <vulkan/vulkan.hpp>
 
 // Abstraction around creating Vulkan descriptor sets.
@@ -17,7 +18,7 @@ private:
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
 
     // The actual descriptor set for each frame
-    std::vector<vk::DescriptorSet> sets;
+    ResourceRing<vk::DescriptorSet> sets;
 
 public:
     // Creates a new descriptor set.
@@ -30,7 +31,7 @@ public:
     // Builds this descriptor set using the bindings.
     void build();
 
-    // Returns a pointer to the descriptor set for a given frame.
+    // Returns a pointer to the next descriptor set for a given frame.
     const vk::DescriptorSet* getSet(uint32_t frame) const;
 
     // Writes buffer data to the descriptor set for the given frame.

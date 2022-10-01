@@ -44,13 +44,16 @@ void Engine::run()
     }
 }
 
-void Engine::draw(float delta) {
+void Engine::draw(float delta)
+{
     vk::Result res;
 
-    const vk::Fence& renderFence = renderFences.next();
-    const vk::Semaphore& presentSemaphore = presentSemaphores.next();
-    const vk::Semaphore& renderSemaphore = renderSemaphores.next();
-    const vk::CommandBuffer& commandBuffer = renderCommandBuffers.next();
+    uint32_t flightFrame = _frameCount % MAX_FRAMES_IN_FLIGHT;
+
+    const vk::Fence& renderFence = renderFences[flightFrame];
+    const vk::Semaphore& presentSemaphore = presentSemaphores[flightFrame];
+    const vk::Semaphore& renderSemaphore = renderSemaphores[flightFrame];
+    const vk::CommandBuffer& commandBuffer = renderCommandBuffers[flightFrame];
 
     // Wait for GPU to finish work
     res = device.waitForFences(1, &renderFence, true, 1000000000);
@@ -85,7 +88,7 @@ void Engine::draw(float delta) {
     commandBuffer.begin(cmdBeginInfo);
 
     // Record the commands
-    renderer->recordCommands(commandBuffer, imageIndex);
+    renderer->recordCommands(commandBuffer, imageIndex, flightFrame);
 
     // End command buffer
     commandBuffer.end();

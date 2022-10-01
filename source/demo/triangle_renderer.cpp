@@ -13,7 +13,7 @@ void TriangleRenderer::update(float delta)
     _time += delta;
 }
 
-void TriangleRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t flightFrame)
+void TriangleRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t)
 {
     // Create clear color for this frame
     vk::ClearValue clearValue;
@@ -26,7 +26,7 @@ void TriangleRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.extent = vk::Extent2D(engine->windowSize.x, engine->windowSize.y);
-    renderpassInfo.framebuffer = _windowFramebuffers[flightFrame];
+    renderpassInfo.framebuffer = _windowFramebuffers[swapchainImage];
     renderpassInfo.clearValueCount = 1;
     renderpassInfo.pClearValues = &clearValue;
     commandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);

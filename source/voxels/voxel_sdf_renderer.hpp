@@ -1,4 +1,6 @@
 #include "engine/renderer.hpp"
+
+#include <optional>
 #include "util/resource_ring.hpp"
 #include "voxel_sdf_pipeline.hpp"
 #include "engine/resource/texture_3d.hpp"
@@ -11,9 +13,9 @@ private:
     CameraController camera;
 
     glm::uvec2 renderRes = { 1920, 1080 };
-    ResourceRing<RenderImage> _renderColorTarget;
+    std::shared_ptr<RenderImage> _renderColorTarget;
     vk::RenderPass _renderColorPass;
-    ResourceRing<vk::Framebuffer> _renderColorFramebuffer;
+    vk::Framebuffer _renderColorFramebuffer;
 
     std::shared_ptr<Texture3D> _sceneTexture;
     std::shared_ptr<Texture2D> _noiseTexture;
@@ -25,5 +27,5 @@ private:
 public:
     VoxelSDFRenderer(const std::shared_ptr<Engine>& engine);
     virtual void update(float delta) override;
-    virtual void recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t flightFrame) override;
+    virtual void recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame) override;
 };

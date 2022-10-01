@@ -14,12 +14,11 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
 {
     camera = CameraController(glm::vec3(8, 8, -50), 90.0, 0.0f, 1 / glm::tan(glm::radians(55.0f / 2)));
 
-    _renderColorTarget = ResourceRing<RenderImage>::fromArgs(engine->swapchain.size(), engine,
-                                                             renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
-                                                             vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eColor);
+    _renderColorTarget = std::make_shared<RenderImage>(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
+                                                       vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eColor);
 
     vk::AttachmentDescription colorAttachment;
-    colorAttachment.format = _renderColorTarget[0].format;
+    colorAttachment.format = _renderColorTarget->format;
     colorAttachment.samples = vk::SampleCountFlagBits::e1;
     colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
     colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
@@ -40,7 +39,7 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
     _renderColorPass = engine->device.createRenderPass(renderPassInfo);
-    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
         engine->device.destroyRenderPass(_renderColorPass);
     });
 
@@ -50,14 +49,10 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     framebufferInfo.width = renderRes.x;
     framebufferInfo.height = renderRes.y;
     framebufferInfo.layers = 1;
-    _renderColorFramebuffer = ResourceRing<vk::Framebuffer>::fromFunc(engine->swapchain.size(), [&](size_t i) {
-        framebufferInfo.pAttachments = &_renderColorTarget[i].imageView;
-        return engine->device.createFramebuffer(framebufferInfo);
-    });
-    engine->deletionQueue.push_deletor(deletorGroup, [&]() {
-        _renderColorFramebuffer.destroy([&](const vk::Framebuffer& framebuffer) {
-            engine->device.destroy(framebuffer);
-        });
+    framebufferInfo.pAttachments = &_renderColorTarget->imageView;
+    _renderColorFramebuffer = engine->device.createFramebuffer(framebufferInfo);
+    engine->deletionQueue.push_deletor(deletorGroup, [=]() {
+        engine->device.destroy(_renderColorFramebuffer);
     });
 
     size_t size = size_t(AREA_SIZE.x) * size_t(AREA_SIZE.y) * size_t(AREA_SIZE.z);
@@ -96,7 +91,7 @@ void VoxelSDFRenderer::update(float delta)
     camera.update(engine->window, delta);
 }
 
-void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t flightFrame)
+void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame)
 {
     // Create clear color for this frame
     vk::ClearValue clearValue;
@@ -109,7 +104,7 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.extent = vk::Extent2D(renderRes.x, renderRes.y);
-    renderpassInfo.framebuffer = _renderColorFramebuffer[flightFrame];
+    renderpassInfo.framebuffer = _renderColorFramebuffer;
     renderpassInfo.clearValueCount = 1;
     renderpassInfo.pClearValues = &clearValue;
     commandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
@@ -156,13 +151,13 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     commandBuffer.endRenderPass();
 
     // Copy color target into swapchain image
-    cmdutil::blit(commandBuffer, _renderColorTarget[flightFrame].image, { 0, 0 }, { 1920, 1080 },
-                  engine->swapchain.images[flightFrame], { 0, 0 }, engine->windowSize);
+    cmdutil::blit(commandBuffer, _renderColorTarget->image, { 0, 0 }, { renderRes.x, renderRes.y },
+                  engine->swapchain.images[swapchainImage], { 0, 0 }, engine->windowSize);
 
     // Return swapchain image to present layout
     cmdutil::imageMemoryBarrier(
             commandBuffer,
-            engine->swapchain.images[flightFrame],
+            engine->swapchain.images[swapchainImage],
             vk::AccessFlagBits::eTransferWrite,
             vk::AccessFlagBits::eMemoryRead,
             vk::ImageLayout::eUndefined,

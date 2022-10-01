@@ -12,5 +12,5 @@ private:
 public:
     TriangleRenderer(const std::shared_ptr<Engine>& engine);
     virtual void update(float delta) override;
-    virtual void recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t flightFrame) override;
+    virtual void recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame) override;
 };

@@ -24,7 +24,7 @@ public:
     virtual void update(float delta) = 0;
     // Called each frame to record rendering commands in the given buffer.
     // flightFrame is the index of the current frame in flight, and should be used to alternate framebuffers.
-    virtual void recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t flightFrame) = 0;
+    virtual void recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame) = 0;
 
 protected:
     void initWindowRenderPass();

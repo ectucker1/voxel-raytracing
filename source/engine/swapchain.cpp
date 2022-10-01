@@ -25,12 +25,12 @@ void Swapchain::init(const std::shared_ptr<Engine>& engine)
     swapchain = vkbSwapchain.swapchain;
     imageFormat = vk::Format(vkbSwapchain.image_format);
     auto resultImages = vkbSwapchain.get_images().value();
-    images = ResourceRing<vk::Image>::fromFunc(resultImages.size(), [&](size_t i) {
+    images = ResourceRing<vk::Image>::fromFunc(static_cast<uint32_t>(resultImages.size()), [&](uint32_t i) {
         return resultImages[i];
     });
 
     auto resultImageViews = vkbSwapchain.get_image_views().value();
-    imageViews= ResourceRing<vk::ImageView>::fromFunc(resultImageViews.size(), [&](size_t i) {
+    imageViews= ResourceRing<vk::ImageView>::fromFunc(static_cast<uint32_t>(resultImageViews.size()), [&](uint32_t i) {
         return resultImageViews[i];
     });
 
@@ -46,6 +46,6 @@ void Swapchain::init(const std::shared_ptr<Engine>& engine)
                                  [=]() { init(_engine); });
 }
 
-size_t Swapchain::size() {
+uint32_t Swapchain::size() {
     return images.size();
 }

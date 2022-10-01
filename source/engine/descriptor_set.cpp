@@ -34,16 +34,17 @@ void DescriptorSet::build()
     });
 
     // Create descriptor sets using the layout
-    std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT + 1, layout);
+    std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, layout);
     vk::DescriptorSetAllocateInfo descriptorAllocInfo = {};
     descriptorAllocInfo.descriptorPool = engine->descriptorPool;
-    descriptorAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT + 1;
+    descriptorAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
     descriptorAllocInfo.pSetLayouts = layouts.data();
     auto sceneDescriptorAllocResult = engine->device.allocateDescriptorSets(descriptorAllocInfo);
 
     // Copy results into our set storage
-    sets.reserve(sceneDescriptorAllocResult.size());
-    sets.insert(sets.end(), sceneDescriptorAllocResult.begin(), sceneDescriptorAllocResult.end());
+    sets = ResourceRing<vk::DescriptorSet>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t i) {
+        return sceneDescriptorAllocResult[i];
+    });
 }
 
 const vk::DescriptorSet* DescriptorSet::getSet(uint32_t frame) const
@@ -89,12 +90,12 @@ void DescriptorSet::writeImage(uint32_t binding, uint32_t frame,
 
 void DescriptorSet::initBuffer(uint32_t binding, vk::Buffer buffer, vk::DeviceSize size, vk::DescriptorType type) const
 {
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT + 1; i++)
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         writeBuffer(binding, i, buffer, size, type);
 }
 
 void DescriptorSet::initImage(uint32_t binding, vk::ImageView imageView, vk::Sampler sampler, vk::ImageLayout imageLayout) const
 {
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT + 1; i++)
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         writeImage(binding, i, imageView, sampler, imageLayout);
 }
