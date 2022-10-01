@@ -7,6 +7,8 @@
 #include "engine/resource/texture_2d.hpp"
 #include "engine/resource/buffer.hpp"
 #include "engine/resource/render_image.hpp"
+#include "engine/pipeline/render_pass.hpp"
+#include "engine/pipeline/framebuffer.hpp"
 #include "voxels/camera_controller.hpp"
 
 class VoxelSDFRenderer : public ARenderer
@@ -16,8 +18,8 @@ private:
 
     glm::uvec2 renderRes = { 1920, 1080 };
     std::optional<RenderImage> _renderColorTarget;
-    vk::RenderPass _renderColorPass;
-    vk::Framebuffer _renderColorFramebuffer;
+    std::optional<RenderPass> _renderColorPass;
+    std::optional<Framebuffer> _renderColorFramebuffer;
 
     std::optional<Texture3D> _sceneTexture;
     std::optional<Texture2D> _noiseTexture;

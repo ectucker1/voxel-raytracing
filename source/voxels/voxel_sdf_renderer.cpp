@@ -17,43 +17,13 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     _renderColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
                                      vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eColor);
 
-    vk::AttachmentDescription colorAttachment;
-    colorAttachment.format = _renderColorTarget->format;
-    colorAttachment.samples = vk::SampleCountFlagBits::e1;
-    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-    colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-    colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-    colorAttachment.finalLayout = vk::ImageLayout::eReadOnlyOptimal;
-    vk::AttachmentReference colorAttachmentRef;
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
-    vk::SubpassDescription subpass;
-    subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-    vk::RenderPassCreateInfo renderPassInfo;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-    _renderColorPass = engine->device.createRenderPass(renderPassInfo);
-    pushDeletor([=](const std::shared_ptr<Engine>&) {
-        engine->device.destroyRenderPass(_renderColorPass);
-    });
+    _renderColorPass = RenderPassBuilder(engine)
+            .color(0, _renderColorTarget->format, glm::vec4(0.0))
+            .build();
 
-    vk::FramebufferCreateInfo framebufferInfo;
-    framebufferInfo.renderPass = _renderColorPass;
-    framebufferInfo.attachmentCount = 1;
-    framebufferInfo.width = renderRes.x;
-    framebufferInfo.height = renderRes.y;
-    framebufferInfo.layers = 1;
-    framebufferInfo.pAttachments = &_renderColorTarget->imageView;
-    _renderColorFramebuffer = engine->device.createFramebuffer(framebufferInfo);
-    pushDeletor([=](const std::shared_ptr<Engine>&) {
-        engine->device.destroy(_renderColorFramebuffer);
-    });
+    _renderColorFramebuffer = FramebufferBuilder(engine, _renderColorPass->renderPass, renderRes)
+            .color(_renderColorTarget->imageView)
+            .build();
 
     size_t size = size_t(AREA_SIZE.x) * size_t(AREA_SIZE.y) * size_t(AREA_SIZE.z);
     std::vector<uint8_t> sceneData = std::vector<uint8_t>(size);
@@ -78,7 +48,7 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     _paletteBuffer = Buffer(engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _paletteBuffer->copyData(paletteMaterials.data(), 256 * sizeof(Material));
 
-    _pipeline = VoxelSDFPipeline(VoxelSDFPipeline::build(engine, _renderColorPass));
+    _pipeline = VoxelSDFPipeline(VoxelSDFPipeline::build(engine, _renderColorPass->renderPass));
     _pipeline->descriptorSet->initImage(0, _sceneTexture->imageView, _sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     _pipeline->descriptorSet->initBuffer(1, _paletteBuffer->buffer, _paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
     _pipeline->descriptorSet->initImage(2, _noiseTexture->imageView, _noiseTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -92,21 +62,8 @@ void VoxelSDFRenderer::update(float delta)
 
 void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame)
 {
-    // Create clear color for this frame
-    vk::ClearValue clearValue;
-    float flash = abs(sin(_time));
-    clearValue.color = vk::ClearColorValue(std::array<float, 4> {0.0f, 0.0f, flash, 1.0f});
-
     // Start color renderpass
-    vk::RenderPassBeginInfo renderpassInfo = {};
-    renderpassInfo.renderPass = _renderColorPass;
-    renderpassInfo.renderArea.offset = 0;
-    renderpassInfo.renderArea.offset = 0;
-    renderpassInfo.renderArea.extent = vk::Extent2D(renderRes.x, renderRes.y);
-    renderpassInfo.framebuffer = _renderColorFramebuffer;
-    renderpassInfo.clearValueCount = 1;
-    renderpassInfo.pClearValues = &clearValue;
-    commandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);
+    _renderColorPass->recordBegin(commandBuffer, _renderColorFramebuffer.value());
 
     // Bind pipeline
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->pipeline);

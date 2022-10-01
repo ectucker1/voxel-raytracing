@@ -7,10 +7,6 @@
 #include "util/resource_ring.hpp"
 #include "engine/pipeline/descriptor_set.hpp"
 
-class Texture3D;
-class Texture2D;
-class Buffer;
-
 class VoxelSDFPipeline : public APipeline
 {
 public:
