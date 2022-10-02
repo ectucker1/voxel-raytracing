@@ -14,15 +14,19 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
 {
     camera = CameraController(glm::vec3(8, 8, -50), 90.0, 0.0f, 1 / glm::tan(glm::radians(55.0f / 2)));
 
-    _renderColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
+    gColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
                                      vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eColor);
+    gDepthTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR32Sfloat,
+                               vk::ImageUsageFlagBits::eColorAttachment, vk::ImageAspectFlagBits::eColor);
 
-    _renderColorPass = RenderPassBuilder(engine)
-            .color(0, _renderColorTarget->format, glm::vec4(0.0))
+    gPass = RenderPassBuilder(engine)
+            .color(0, gColorTarget->format, glm::vec4(0.0))
+            .color(1, gDepthTarget->format, glm::vec4(0.0))
             .build();
 
-    _renderColorFramebuffer = FramebufferBuilder(engine, _renderColorPass->renderPass, renderRes)
-            .color(_renderColorTarget->imageView)
+    gFramebuffer = FramebufferBuilder(engine, gPass->renderPass, renderRes)
+            .color(gColorTarget->imageView)
+            .color(gDepthTarget->imageView)
             .build();
 
     size_t size = size_t(AREA_SIZE.x) * size_t(AREA_SIZE.y) * size_t(AREA_SIZE.z);
@@ -48,7 +52,7 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     _paletteBuffer = Buffer(engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _paletteBuffer->copyData(paletteMaterials.data(), 256 * sizeof(Material));
 
-    _pipeline = VoxelSDFPipeline(VoxelSDFPipeline::build(engine, _renderColorPass->renderPass));
+    _pipeline = VoxelSDFPipeline(VoxelSDFPipeline::build(engine, gPass->renderPass));
     _pipeline->descriptorSet->initImage(0, _sceneTexture->imageView, _sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     _pipeline->descriptorSet->initBuffer(1, _paletteBuffer->buffer, _paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
     _pipeline->descriptorSet->initImage(2, _noiseTexture->imageView, _noiseTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -63,7 +67,7 @@ void VoxelSDFRenderer::update(float delta)
 void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame)
 {
     // Start color renderpass
-    _renderColorPass->recordBegin(commandBuffer, _renderColorFramebuffer.value());
+    gPass->recordBegin(commandBuffer, gFramebuffer.value());
 
     // Bind pipeline
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->pipeline);
@@ -107,7 +111,7 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     commandBuffer.endRenderPass();
 
     // Copy color target into swapchain image
-    cmdutil::blit(commandBuffer, _renderColorTarget->image, { 0, 0 }, { renderRes.x, renderRes.y },
+    cmdutil::blit(commandBuffer, gColorTarget->image, {0, 0 }, {renderRes.x, renderRes.y },
                   engine->swapchain.images[swapchainImage], { 0, 0 }, engine->windowSize);
 
     // Return swapchain image to present layout

@@ -38,6 +38,7 @@ protected:
     virtual vk::PipelineViewportStateCreateInfo buildViewport();
     virtual vk::PipelineRasterizationStateCreateInfo buildRasterizer();
     virtual vk::PipelineColorBlendStateCreateInfo buildColorBlendAttachment();
+    virtual vk::PipelineDepthStencilStateCreateInfo buildDepthStencil();
     virtual vk::PipelineMultisampleStateCreateInfo buildMultisampling();
     virtual vk::PipelineLayoutCreateInfo buildPipelineLayout();
 };

@@ -17,9 +17,10 @@ private:
     CameraController camera;
 
     glm::uvec2 renderRes = { 1920, 1080 };
-    std::optional<RenderImage> _renderColorTarget;
-    std::optional<RenderPass> _renderColorPass;
-    std::optional<Framebuffer> _renderColorFramebuffer;
+    std::optional<RenderImage> gColorTarget;
+    std::optional<RenderImage> gDepthTarget;
+    std::optional<RenderPass> gPass;
+    std::optional<Framebuffer> gFramebuffer;
 
     std::optional<Texture3D> _sceneTexture;
     std::optional<Texture2D> _noiseTexture;

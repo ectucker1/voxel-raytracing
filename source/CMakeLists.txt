@@ -45,6 +45,7 @@ target_precompile_headers(voxels_lib
         <unordered_set>
         <deque>
         <functional>
+        <optional>
         <fmt/format.h>
         <VkBootstrap.h>
         <vulkan/vulkan.hpp>

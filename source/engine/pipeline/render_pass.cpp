@@ -87,9 +87,9 @@ RenderPass RenderPassBuilder::build()
     if (depthStencilAttachment.has_value())
         attachments.push_back(depthStencilAttachment.value());
     vk::RenderPassCreateInfo renderPassInfo;
-    renderPassInfo.attachmentCount = static_cast<uint32_t>(colorAttachments.size());
+    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     renderPassInfo.pAttachments = attachments.data();
-    renderPassInfo.subpassCount = static_cast<uint32_t>(attachments.size());
+    renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
 
     vk::RenderPass createdPass = engine->device.createRenderPass(renderPassInfo);

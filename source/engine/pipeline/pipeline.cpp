@@ -16,6 +16,7 @@ void APipeline::buildAll()
     vk::PipelineRasterizationStateCreateInfo rasterizationInfo = buildRasterizer();
     vk::PipelineMultisampleStateCreateInfo multisamplingInfo = buildMultisampling();
     vk::PipelineColorBlendStateCreateInfo colorBlendInfo = buildColorBlendAttachment();
+    vk::PipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = buildDepthStencil();
     vk::PipelineLayoutCreateInfo layoutInfo = buildPipelineLayout();
 
     // Create layout
@@ -36,6 +37,7 @@ void APipeline::buildAll()
     pipelineInfo.pRasterizationState = &rasterizationInfo;
     pipelineInfo.pMultisampleState = &multisamplingInfo;
     pipelineInfo.pColorBlendState = &colorBlendInfo;
+    pipelineInfo.pDepthStencilState = &depthStencilStateCreateInfo;
     pipelineInfo.layout = layout;
     pipelineInfo.renderPass = pass;
     pipelineInfo.subpass = 0;
@@ -107,6 +109,18 @@ vk::PipelineColorBlendStateCreateInfo APipeline::buildColorBlendAttachment()
     colorBlendInfo.pAttachments = &_colorBlendAttachment;
 
     return colorBlendInfo;
+}
+
+vk::PipelineDepthStencilStateCreateInfo APipeline::buildDepthStencil()
+{
+    vk::PipelineDepthStencilStateCreateInfo depthStencilInfo;
+    depthStencilInfo.depthTestEnable = false;
+    depthStencilInfo.depthWriteEnable = true;
+    depthStencilInfo.depthBoundsTestEnable = false;
+    depthStencilInfo.minDepthBounds = 0.0f;
+    depthStencilInfo.maxDepthBounds = 1.0f;
+    depthStencilInfo.stencilTestEnable = false;
+    return depthStencilInfo;
 }
 
 vk::PipelineMultisampleStateCreateInfo APipeline::buildMultisampling()

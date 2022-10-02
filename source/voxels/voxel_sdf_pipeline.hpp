@@ -15,6 +15,9 @@ public:
 private:
     std::optional<ShaderModule> vertexModule;
     std::optional<ShaderModule> fragmentModule;
+
+    std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments;
+
     std::optional<vk::PushConstantRange> pushConstantRange;
 
 protected:
@@ -28,4 +31,5 @@ protected:
     virtual vk::PipelineVertexInputStateCreateInfo buildVertexInputInfo() override;
     virtual vk::PipelineInputAssemblyStateCreateInfo buildInputAssembly() override;
     virtual vk::PipelineLayoutCreateInfo buildPipelineLayout() override;
+    virtual vk::PipelineColorBlendStateCreateInfo buildColorBlendAttachment() override;
 };

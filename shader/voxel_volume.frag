@@ -3,6 +3,7 @@
 layout (location = 0) in vec2 vScreenPos;
 
 layout (location = 0) out vec4 outColor;
+layout (location = 1) out float outDepth;
 
 layout (push_constant) uniform constants
 {
@@ -164,9 +165,11 @@ void main()
         }
 
         outColor.rgb = diffuseColor * ambientColor.rgb;
+        outDepth = clamp(2000.0 / length(result.pos - pushConstants.camPos.xyz), 0.0, 1.0);
     }
     else
     {
         outColor.rgb = skyColor(rayDir).rgb;
+        outDepth = 0.0;
     }
 }

@@ -70,3 +70,27 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
 
     return layoutInfo;
 }
+
+vk::PipelineColorBlendStateCreateInfo VoxelSDFPipeline::buildColorBlendAttachment()
+{
+    // Attach to all color bits
+    vk::PipelineColorBlendAttachmentState attachment = {};
+    attachment.colorWriteMask = vk::ColorComponentFlagBits::eR
+            | vk::ColorComponentFlagBits::eG
+            | vk::ColorComponentFlagBits::eB
+            | vk::ColorComponentFlagBits::eA;
+    attachment.blendEnable = false;
+
+    colorBlendAttachments = {};
+    for (size_t i = 0; i < 2; i++)
+        colorBlendAttachments.push_back(attachment);
+
+    // No blending ops needed
+    vk::PipelineColorBlendStateCreateInfo colorBlendInfo;
+    colorBlendInfo.logicOpEnable = false;
+    colorBlendInfo.logicOp = vk::LogicOp::eCopy;
+    colorBlendInfo.attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size());
+    colorBlendInfo.pAttachments = colorBlendAttachments.data();
+
+    return colorBlendInfo;
+}
