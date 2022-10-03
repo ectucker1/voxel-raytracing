@@ -3,6 +3,7 @@
 #include <optional>
 #include "util/resource_ring.hpp"
 #include "voxel_sdf_pipeline.hpp"
+#include "denoiser_pipeline.hpp"
 #include "engine/resource/texture_3d.hpp"
 #include "engine/resource/texture_2d.hpp"
 #include "engine/resource/buffer.hpp"
@@ -17,15 +18,22 @@ private:
     CameraController camera;
 
     glm::uvec2 renderRes = { 1920, 1080 };
+
     std::optional<RenderImage> gColorTarget;
     std::optional<RenderImage> gDepthTarget;
     std::optional<RenderPass> gPass;
     std::optional<Framebuffer> gFramebuffer;
 
+    std::optional<RenderImage> denoiseColorTarget;
+    std::optional<RenderPass> denoisePass;
+    std::optional<Framebuffer> denoiseFramebuffer;
+
+    std::optional<VoxelSDFPipeline> geometryPipeline;
+    std::optional<DenoiserPipeline> denoisePipeline;
+
     std::optional<Texture3D> _sceneTexture;
     std::optional<Texture2D> _noiseTexture;
     std::optional<Buffer> _paletteBuffer;
-    std::optional<VoxelSDFPipeline> _pipeline;
 
     float _time = 0;
 
