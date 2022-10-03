@@ -8,7 +8,7 @@
 class Framebuffer;
 
 // Abstraction around a Vulkan render pass.
-class RenderPass : AResource
+class RenderPass : public AResource
 {
 public:
     // The actual render pass.

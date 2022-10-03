@@ -26,7 +26,7 @@ public:
 
     // Destroys this resource.
     // This relies on the engine's deletion queue for the deletor group.
-    void destroy();
+    void destroy() const;
 
     AResource(const AResource&) = default;
     AResource(AResource&&) = default;

@@ -45,8 +45,10 @@ void DeletionQueue::destroy_group(uint32_t group)
 
 void DeletionQueue::destroy_all()
 {
-    for (const uint32_t group: _groups)
+    while (!_groups.empty())
     {
+        uint32_t group = _groups.front();
+        _groups.pop_front();
         auto groupIt = _deletors.find(group);
         if (groupIt != _deletors.end())
         {

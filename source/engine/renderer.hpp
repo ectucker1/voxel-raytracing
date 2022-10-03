@@ -1,9 +1,12 @@
 #pragma once
 
+#include <optional>
 #include <memory>
 #include <vulkan/vulkan.hpp>
 #include "util/resource_ring.hpp"
 #include "engine/resource.hpp"
+#include "engine/pipeline/render_pass.hpp"
+#include "engine/pipeline/framebuffer.hpp"
 
 class Engine;
 
@@ -12,8 +15,8 @@ class Engine;
 class ARenderer : public AResource
 {
 protected:
-    vk::RenderPass _windowRenderPass;
-    ResourceRing<vk::Framebuffer> _windowFramebuffers;
+    std::optional<RenderPass> _windowRenderPass;
+    ResourceRing<Framebuffer> _windowFramebuffers;
 
 public:
     // Called to initialize the renderer.

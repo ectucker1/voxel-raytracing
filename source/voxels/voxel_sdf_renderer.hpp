@@ -4,6 +4,7 @@
 #include "util/resource_ring.hpp"
 #include "voxel_sdf_pipeline.hpp"
 #include "denoiser_pipeline.hpp"
+#include "blit_pipeline.hpp"
 #include "engine/resource/texture_3d.hpp"
 #include "engine/resource/texture_2d.hpp"
 #include "engine/resource/buffer.hpp"
@@ -30,10 +31,14 @@ private:
 
     std::optional<VoxelSDFPipeline> geometryPipeline;
     std::optional<DenoiserPipeline> denoisePipeline;
+    std::optional<BlitPipeline> blitPipeline;
 
     std::optional<Texture3D> _sceneTexture;
     std::optional<Texture2D> _noiseTexture;
     std::optional<Buffer> _paletteBuffer;
+
+    BlitOffsets blitOffsets;
+    std::optional<Buffer> _blitOffsetsBuffer;
 
     float _time = 0;
 

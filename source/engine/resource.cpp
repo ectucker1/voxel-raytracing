@@ -15,7 +15,7 @@ void AResource::pushDeletor(std::function<void(const std::shared_ptr<Engine>&)> 
     });
 }
 
-void AResource::destroy()
+void AResource::destroy() const
 {
     engine->deletionQueue.destroy_group(deletorGroup);
 }

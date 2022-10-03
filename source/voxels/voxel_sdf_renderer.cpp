@@ -17,7 +17,7 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     gColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
                                      vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
     gDepthTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR32Sfloat,
-                               vk::ImageUsageFlagBits::eColorAttachment, vk::ImageAspectFlagBits::eColor);
+                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
     gPass = RenderPassBuilder(engine)
             .color(0, gColorTarget->format, glm::vec4(0.0))
             .color(1, gDepthTarget->format, glm::vec4(0.0))
@@ -28,7 +28,7 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
             .build();
 
     denoiseColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
-                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eColor);
+                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
     denoisePass = RenderPassBuilder(engine)
             .color(0, denoiseColorTarget->format, glm::vec4(0.0))
             .build();
@@ -59,6 +59,9 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     _paletteBuffer = Buffer(engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _paletteBuffer->copyData(paletteMaterials.data(), 256 * sizeof(Material));
 
+    _blitOffsetsBuffer = Buffer(engine, sizeof(BlitOffsets), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _blitOffsetsBuffer->copyData(&blitOffsets, sizeof(BlitOffsets));
+
     geometryPipeline = VoxelSDFPipeline(VoxelSDFPipeline::build(engine, gPass->renderPass));
     geometryPipeline->descriptorSet->initImage(0, _sceneTexture->imageView, _sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     geometryPipeline->descriptorSet->initBuffer(1, _paletteBuffer->buffer, _paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
@@ -66,6 +69,10 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
 
     denoisePipeline = DenoiserPipeline(DenoiserPipeline::build(engine, denoisePass->renderPass));
     denoisePipeline->descriptorSet->initImage(0, gColorTarget->imageView, gColorTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+    blitPipeline = BlitPipeline(BlitPipeline::build(engine, _windowRenderPass->renderPass));
+    blitPipeline->descriptorSet->initImage(0, denoiseColorTarget->imageView, denoiseColorTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+    blitPipeline->descriptorSet->initBuffer(1, _blitOffsetsBuffer->buffer, _blitOffsetsBuffer->size, vk::DescriptorType::eUniformBuffer);
 }
 
 void VoxelSDFRenderer::update(float delta)
@@ -76,6 +83,7 @@ void VoxelSDFRenderer::update(float delta)
 
 void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame)
 {
+    // Set viewport
     vk::Viewport renderResViewport;
     renderResViewport.x = 0.0f;
     renderResViewport.y = 0.0f;
@@ -90,17 +98,6 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     renderResScissor.offset = vk::Offset2D(0, 0);
     renderResScissor.extent = vk::Extent2D(renderRes.x, renderRes.y);
     commandBuffer.setScissor(0, 1, &renderResScissor);
-
-    cmdutil::imageMemoryBarrier(
-            commandBuffer,
-            gColorTarget->image,
-            vk::AccessFlagBits::eNone,
-            vk::AccessFlagBits::eShaderWrite,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eColorAttachmentOptimal,
-            vk::PipelineStageFlagBits::eFragmentShader,
-            vk::PipelineStageFlagBits::eFragmentShader,
-            vk::ImageAspectFlagBits::eColor);
 
     // Start color renderpass
     gPass->recordBegin(commandBuffer, gFramebuffer.value());
@@ -131,11 +128,11 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     cmdutil::imageMemoryBarrier(
             commandBuffer,
             gColorTarget->image,
-            vk::AccessFlagBits::eShaderWrite,
+            vk::AccessFlagBits::eColorAttachmentWrite,
             vk::AccessFlagBits::eShaderRead,
-            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eColorAttachmentOptimal,
             vk::ImageLayout::eShaderReadOnlyOptimal,
-            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
             vk::PipelineStageFlagBits::eFragmentShader,
             vk::ImageAspectFlagBits::eColor);
 
@@ -156,19 +153,51 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     // End denoise renderpass
     commandBuffer.endRenderPass();
 
-    // Copy color target into swapchain image
-    cmdutil::blit(commandBuffer, denoiseColorTarget->image, {0, 0 }, {renderRes.x, renderRes.y },
-                  engine->swapchain.images[swapchainImage], { 0, 0 }, engine->windowSize);
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            denoiseColorTarget->image,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eShaderRead,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::ImageAspectFlagBits::eColor);
 
-    // Return swapchain image to present layout
+    // Set viewport
+    vk::Viewport presentResViewport;
+    presentResViewport.x = 0.0f;
+    presentResViewport.y = 0.0f;
+    presentResViewport.width = static_cast<float>(engine->windowSize.x);
+    presentResViewport.height = static_cast<float>(engine->windowSize.y);
+    presentResViewport.minDepth = 0.0f;
+    presentResViewport.maxDepth = 1.0f;
+
+    // Set scissor
+    vk::Rect2D presentResScissor;
+    presentResScissor.offset = vk::Offset2D(0, 0);
+    presentResScissor.extent = vk::Extent2D(engine->windowSize.x, engine->windowSize.y);
+
+    // Copy color target into swapchain image
+    _windowRenderPass->recordBegin(commandBuffer, _windowFramebuffers[swapchainImage]);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, blitPipeline->pipeline);
+    commandBuffer.setViewport(0, 1, &presentResViewport);
+    commandBuffer.setScissor(0, 1, &presentResScissor);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, blitPipeline->layout,
+                                     0, 1,
+                                     blitPipeline->descriptorSet->getSet(flightFrame),
+                                     0, nullptr);
+    commandBuffer.draw(3, 1, 0, 0);
+    commandBuffer.endRenderPass();
+
     cmdutil::imageMemoryBarrier(
             commandBuffer,
             engine->swapchain.images[swapchainImage],
-            vk::AccessFlagBits::eTransferWrite,
-            vk::AccessFlagBits::eMemoryRead,
-            vk::ImageLayout::eUndefined,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eNone,
+            vk::ImageLayout::eColorAttachmentOptimal,
             vk::ImageLayout::ePresentSrcKHR,
-            vk::PipelineStageFlagBits::eTransfer,
-            vk::PipelineStageFlagBits::eTransfer,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eBottomOfPipe,
             vk::ImageAspectFlagBits::eColor);
 }

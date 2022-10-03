@@ -51,7 +51,7 @@ void CameraController::update(GLFWwindow* window, float delta)
 
 void CameraController::mouseCallback(GLFWwindow* window, double cursorX, double cursorY)
 {
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS)
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
     {
         if (lastCursorX > 0 && lastCursorY > 0)
         {

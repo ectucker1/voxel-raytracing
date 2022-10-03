@@ -4,7 +4,7 @@
 
 TriangleRenderer::TriangleRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
-    _pipeline = std::make_unique<TrianglePipeline>(engine, _windowRenderPass);
+    _pipeline = std::make_unique<TrianglePipeline>(engine, _windowRenderPass->renderPass);
     _pipeline->buildAll();
 }
 
@@ -22,11 +22,11 @@ void TriangleRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
 
     // Start main renderpass
     vk::RenderPassBeginInfo renderpassInfo;
-    renderpassInfo.renderPass = _windowRenderPass;
+    renderpassInfo.renderPass = _windowRenderPass->renderPass;
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.offset = 0;
     renderpassInfo.renderArea.extent = vk::Extent2D(engine->windowSize.x, engine->windowSize.y);
-    renderpassInfo.framebuffer = _windowFramebuffers[swapchainImage];
+    renderpassInfo.framebuffer = _windowFramebuffers[swapchainImage].framebuffer;
     renderpassInfo.clearValueCount = 1;
     renderpassInfo.pClearValues = &clearValue;
     commandBuffer.beginRenderPass(renderpassInfo, vk::SubpassContents::eInline);

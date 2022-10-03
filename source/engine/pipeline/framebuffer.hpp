@@ -8,7 +8,7 @@
 
 // Wrapper around a Vulkan framebuffer.
 // A framebuffer connects some number of image views to a render pass.
-class Framebuffer : AResource
+class Framebuffer : public AResource
 {
 public:
     // The actual Vulkan framebuffer.
