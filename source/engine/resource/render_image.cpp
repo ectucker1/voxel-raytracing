@@ -55,8 +55,8 @@ RenderImage::RenderImage(const std::shared_ptr<Engine>& engine, uint32_t width, 
 
     // Create sampler
     vk::SamplerCreateInfo samplerInfo = {};
-    samplerInfo.minFilter = vk::Filter::eNearest;
-    samplerInfo.magFilter = vk::Filter::eNearest;
+    samplerInfo.minFilter = vk::Filter::eLinear;
+    samplerInfo.magFilter = vk::Filter::eLinear;
     samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
     samplerInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
     samplerInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;

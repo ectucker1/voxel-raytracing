@@ -12,6 +12,7 @@
 #include "engine/pipeline/render_pass.hpp"
 #include "engine/pipeline/framebuffer.hpp"
 #include "voxels/camera_controller.hpp"
+#include "voxels/fsr/fsr2_scaler.hpp"
 
 class VoxelSDFRenderer : public ARenderer
 {
@@ -19,11 +20,18 @@ private:
     CameraController camera;
 
     glm::uvec2 renderRes = { 1920, 1080 };
+    glm::uvec2 upscaleRes = { 3840, 2160 };
 
     std::optional<RenderImage> gColorTarget;
     std::optional<RenderImage> gDepthTarget;
+    std::optional<RenderImage> gMotionTarget;
+    std::optional<RenderImage> gMaskTarget;
+    ResourceRing<RenderImage> gPositionTargets;
     std::optional<RenderPass> gPass;
-    std::optional<Framebuffer> gFramebuffer;
+    ResourceRing<Framebuffer> gFramebuffers;
+
+    std::optional<FSR2Scaler> upscaler;
+    std::optional<RenderImage> upscalerTarget;
 
     std::optional<RenderImage> denoiseColorTarget;
     std::optional<RenderPass> denoisePass;

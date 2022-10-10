@@ -9,6 +9,7 @@ struct ScreenQuadPush
     glm::vec4 camRight;
     glm::vec4 camUp;
     glm::uvec3 volumeBounds;
-    glm::float32 time;
+    glm::uvec1 frame;
     glm::ivec2 screenSize;
+    glm::vec2 cameraJitter;
 };

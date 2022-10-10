@@ -59,6 +59,7 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
             .image(0, vk::ShaderStageFlagBits::eFragment)
             .buffer(1, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
             .image(2, vk::ShaderStageFlagBits::eFragment)
+            .image(3, vk::ShaderStageFlagBits::eFragment)
             .build();
 
     // Actual layout
@@ -74,16 +75,16 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
 vk::PipelineColorBlendStateCreateInfo VoxelSDFPipeline::buildColorBlendAttachment()
 {
     // Attach to all color bits
-    vk::PipelineColorBlendAttachmentState attachment = {};
-    attachment.colorWriteMask = vk::ColorComponentFlagBits::eR
+    colorBlendAttachments = {};
+
+    vk::PipelineColorBlendAttachmentState blendState;
+    blendState.colorWriteMask = vk::ColorComponentFlagBits::eR
             | vk::ColorComponentFlagBits::eG
             | vk::ColorComponentFlagBits::eB
             | vk::ColorComponentFlagBits::eA;
-    attachment.blendEnable = false;
-
-    colorBlendAttachments = {};
-    for (size_t i = 0; i < 2; i++)
-        colorBlendAttachments.push_back(attachment);
+    blendState.blendEnable = false;
+    for (size_t i = 0; i < 5; i++)
+        colorBlendAttachments.push_back(blendState);
 
     // No blending ops needed
     vk::PipelineColorBlendStateCreateInfo colorBlendInfo;

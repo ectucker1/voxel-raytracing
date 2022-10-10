@@ -115,13 +115,14 @@ vk::PipelineDepthStencilStateCreateInfo APipeline::buildDepthStencil()
 {
     vk::PipelineDepthStencilStateCreateInfo depthStencilInfo;
     depthStencilInfo.depthTestEnable = false;
-    depthStencilInfo.depthWriteEnable = true;
+    depthStencilInfo.depthWriteEnable = false;
     depthStencilInfo.depthBoundsTestEnable = false;
     depthStencilInfo.minDepthBounds = 0.0f;
     depthStencilInfo.maxDepthBounds = 1.0f;
     depthStencilInfo.stencilTestEnable = false;
     return depthStencilInfo;
 }
+
 
 vk::PipelineMultisampleStateCreateInfo APipeline::buildMultisampling()
 {

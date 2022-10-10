@@ -33,6 +33,8 @@ public:
 
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
+    PFN_vkGetInstanceProcAddr getInstanceProcAddr;
+    PFN_vkGetDeviceProcAddr getDeviceProcAddr;
 
     VmaAllocator allocator;
 

@@ -4,6 +4,9 @@ layout (location = 0) in vec2 vScreenPos;
 
 layout (location = 0) out vec4 outColor;
 layout (location = 1) out float outDepth;
+layout (location = 2) out vec2 outMotion;
+layout (location = 3) out float outMask;
+layout (location = 4) out vec3 outPos;
 
 layout (push_constant) uniform constants
 {
@@ -12,8 +15,9 @@ layout (push_constant) uniform constants
     vec4 camRight;
     vec4 camUp;
     uvec3 volumeBounds;
-    float time;
+    uint frame;
     ivec2 screenSize;
+    vec2 cameraJitter;
 } pushConstants;
 
 struct Material
@@ -34,6 +38,7 @@ layout (set = 0, binding = 1) uniform Palette {
     Material materials[256];
 };
 layout (set = 0, binding = 2) uniform sampler2D blueNoise;
+layout (set = 0, binding = 3) uniform sampler2D oldPos;
 
 const uint MAX_RAY_STEPS = 64;
 const uint AO_SAMPLES = 4;
@@ -52,12 +57,13 @@ uint getVoxel(ivec3 pos)
 // Generates a random number unique to this fragment from
 vec3 fragmentNoiseSeq(uint num)
 {
+    uint offset = num * 32 + pushConstants.frame % 32;
     // Constants inspired by http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
     const float g = 1.22074408460575947536;
     const vec3 a = vec3(1.0 / g, 1.0 / (g * g), 1.0 / (g * g * g));
     vec2 p = gl_FragCoord.xy / NOISE_SIZE + vec2(0.5, 0.5);
     vec3 noise = texture(blueNoise, p).rgb;
-    return mod(noise + num * a, 1.0);
+    return mod(noise + offset * a, 1.0);
 }
 
 // Generates a random direction within the unit sphere
@@ -127,6 +133,9 @@ RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
 
 void main()
 {
+    // Last frame's position
+    vec3 lastPos = texture(oldPos, vScreenPos).xyz;
+
     // Screen position from -1.0 to 1.0
     vec2 screenPos = vScreenPos * 2.0 - 1.0;
 
@@ -135,7 +144,7 @@ void main()
     vec3 cameraPlaneV = pushConstants.camUp.xyz * pushConstants.screenSize.y / pushConstants.screenSize.x;
 
     // Ray direction
-    vec3 rayDir = normalize(normalize(pushConstants.camDir.xyz) + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV);
+    vec3 rayDir = normalize(normalize(pushConstants.camDir.xyz) + screenPos.x * cameraPlaneU + screenPos.y * cameraPlaneV + vec3(pushConstants.cameraJitter / pushConstants.screenSize * vec2(-2.0, 2.0), 0));
 
     // Ray starting position
     vec3 rayStart = pushConstants.camPos.xyz;
@@ -165,11 +174,18 @@ void main()
         }
 
         outColor.rgb = diffuseColor * ambientColor.rgb;
-        outDepth = clamp(2000.0 / length(result.pos - pushConstants.camPos.xyz), 0.0, 1.0);
+        outDepth = length(result.pos - pushConstants.camPos.xyz);
+        outMask = 0.9;
+        // TODO use inverse of camera matrix to reproject old position and calculate motion vectors
+        outMotion = vec2(0);
+        outPos = result.pos;
     }
     else
     {
         outColor.rgb = skyColor(rayDir).rgb;
         outDepth = 0.0;
+        outMask = 0.0;
+        outMotion = vec2(0);
+        outPos = result.pos;
     }
 }

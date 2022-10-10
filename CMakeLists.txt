@@ -6,6 +6,7 @@ project(voxels VERSION 0.0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 # Append modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
@@ -29,6 +30,9 @@ conan_cmake_configure(
 )
 conan_cmake_autodetect(settings)
 conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
+
+# Include prebuilt dependencies
+add_subdirectory(thirdparty/fsr2)
 
 # Include werror utility
 include(werror)

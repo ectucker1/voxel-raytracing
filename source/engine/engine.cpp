@@ -173,16 +173,16 @@ void Engine::initGLFW()
 void Engine::initVulkan() {
     // Set up dynamic loader
     vk::DynamicLoader dl;
-    auto vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
-    auto vkGetDeviceProcAddr = dl.getProcAddress<PFN_vkGetDeviceProcAddr>("vkGetDeviceProcAddr");
-    VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+    getInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    getDeviceProcAddr = dl.getProcAddress<PFN_vkGetDeviceProcAddr>("vkGetDeviceProcAddr");
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(getInstanceProcAddr);
 
     // Create Vulkan instance
     vkb::InstanceBuilder instanceBuilder;
     auto instanceResult = instanceBuilder
         .set_app_name("Voxel Engine")
         .request_validation_layers(true)
-        .require_api_version(1, 1, 0)
+        .require_api_version(1, 2, 0)
         .use_default_debug_messenger()
         .build();
     if (!instanceResult) {
@@ -209,10 +209,18 @@ void Engine::initVulkan() {
     });
 
     // Select physical device (GPU)
+    VkPhysicalDeviceFeatures required10Features = {};
+    required10Features.shaderInt16 = true;
+    VkPhysicalDeviceVulkan11Features required11Features = {};
+    VkPhysicalDeviceVulkan12Features required12Features = {};
+    required12Features.shaderFloat16 = true;
     vkb::PhysicalDeviceSelector physicalDeviceSelector(vkbInstance);
     auto physicalDeviceResult = physicalDeviceSelector
         .set_minimum_version(1, 1)
         .set_surface(surface)
+        .set_required_features(required10Features)
+        .set_required_features_11(required11Features)
+        .set_required_features_12(required12Features)
         .select();
     if (!physicalDeviceResult) {
         throw std::runtime_error(fmt::format("Failed to select physical device. Error: {}", physicalDeviceResult.error().message()));
@@ -235,8 +243,8 @@ void Engine::initVulkan() {
 
     // Create memory allocator
     VmaVulkanFunctions vulkanFunctions = {};
-    vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
-    vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+    vulkanFunctions.vkGetInstanceProcAddr = getInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = getDeviceProcAddr;
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.physicalDevice = physicalDevice;
     allocatorInfo.device = device;

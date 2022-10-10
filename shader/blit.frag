@@ -13,5 +13,10 @@ layout (set = 0, binding = 1) uniform BlitOffsets
 
 void main()
 {
-    outColor = texture(inputImage, vScreenPos);
+    vec2 targetPos = vScreenPos * offsets.targetSize;
+    float scale = min(float(offsets.sourceSize.x) / offsets.targetSize.x, float(offsets.sourceSize.y) / offsets.targetSize.y);
+    vec2 scaledTarget = offsets.targetSize * scale;
+    vec2 sourcePos = targetPos * scale + (offsets.sourceSize - scaledTarget) / 2;
+    vec2 sourceUV = sourcePos / offsets.sourceSize;
+    outColor = texture(inputImage, sourceUV);
 }

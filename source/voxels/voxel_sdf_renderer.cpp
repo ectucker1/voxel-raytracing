@@ -18,14 +18,28 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
                                      vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
     gDepthTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR32Sfloat,
                                vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+    gMotionTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR32G32Sfloat,
+                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+    gMaskTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8Unorm,
+                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+    gPositionTargets = ResourceRing<RenderImage>::fromArgs(2, engine, renderRes.x, renderRes.y, vk::Format::eR32G32B32A32Sfloat,
+                                                           vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
     gPass = RenderPassBuilder(engine)
             .color(0, gColorTarget->format, glm::vec4(0.0))
             .color(1, gDepthTarget->format, glm::vec4(0.0))
+            .color(2, gMotionTarget->format, glm::vec4(0.0))
+            .color(3, gMaskTarget->format, glm::vec4(0.0))
+            .color(4, gPositionTargets[0].format, glm::vec4(0.0))
             .build();
-    gFramebuffer = FramebufferBuilder(engine, gPass->renderPass, renderRes)
+    gFramebuffers = ResourceRing<Framebuffer>::fromFunc(2, [&](uint32_t n) {
+        return FramebufferBuilder(engine, gPass->renderPass, renderRes)
             .color(gColorTarget->imageView)
             .color(gDepthTarget->imageView)
+            .color(gMotionTarget->imageView)
+            .color(gMaskTarget->imageView)
+            .color(gPositionTargets[n].imageView)
             .build();
+    });
 
     denoiseColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
                                vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
@@ -66,12 +80,17 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     geometryPipeline->descriptorSet->initImage(0, _sceneTexture->imageView, _sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     geometryPipeline->descriptorSet->initBuffer(1, _paletteBuffer->buffer, _paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
     geometryPipeline->descriptorSet->initImage(2, _noiseTexture->imageView, _noiseTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+    geometryPipeline->descriptorSet->initImage(3, gPositionTargets[0].imageView, gPositionTargets[0].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
 
     denoisePipeline = DenoiserPipeline(DenoiserPipeline::build(engine, denoisePass->renderPass));
     denoisePipeline->descriptorSet->initImage(0, gColorTarget->imageView, gColorTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
 
+    upscaler = FSR2Scaler(engine);
+    upscalerTarget = RenderImage(engine, upscaleRes.x, upscaleRes.y, vk::Format::eR8G8B8A8Unorm,
+                                 vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+
     blitPipeline = BlitPipeline(BlitPipeline::build(engine, _windowRenderPass->renderPass));
-    blitPipeline->descriptorSet->initImage(0, denoiseColorTarget->imageView, denoiseColorTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+    blitPipeline->descriptorSet->initImage(0, upscalerTarget->imageView, upscalerTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     blitPipeline->descriptorSet->initBuffer(1, _blitOffsetsBuffer->buffer, _blitOffsetsBuffer->size, vk::DescriptorType::eUniformBuffer);
 }
 
@@ -79,6 +98,7 @@ void VoxelSDFRenderer::update(float delta)
 {
     _time += delta;
     camera.update(engine->window, delta);
+    upscaler->update(delta);
 }
 
 void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame)
@@ -99,8 +119,31 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     renderResScissor.extent = vk::Extent2D(renderRes.x, renderRes.y);
     commandBuffer.setScissor(0, 1, &renderResScissor);
 
+    uint32_t altFrame = (flightFrame + 1) % 2;
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            gPositionTargets[flightFrame].image,
+            vk::AccessFlagBits::eShaderRead,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::ImageAspectFlagBits::eColor);
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            gPositionTargets[altFrame].image,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eShaderRead,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::ImageAspectFlagBits::eColor);
+    geometryPipeline->descriptorSet->writeImage(3, flightFrame, gPositionTargets[altFrame].imageView, gPositionTargets[altFrame].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+
     // Start color renderpass
-    gPass->recordBegin(commandBuffer, gFramebuffer.value());
+    gPass->recordBegin(commandBuffer, gFramebuffers[flightFrame]);
     // Bind pipeline
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, geometryPipeline->pipeline);
     // Set push constants
@@ -111,7 +154,9 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     constants.camDir = glm::vec4(camera.direction, 0);
     constants.camUp = glm::vec4(camera.up, 0);
     constants.camRight = glm::vec4(camera.right, 0);
-    constants.time = _time;
+    constants.frame = glm::uvec1(upscaler->frameCount);
+    constants.cameraJitter.x = upscaler->jitterX;
+    constants.cameraJitter.y = upscaler->jitterY;
     commandBuffer.pushConstants(geometryPipeline->layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
     commandBuffer.setViewport(0, 1, &renderResViewport);
     // Set scissor
@@ -164,6 +209,65 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
             vk::PipelineStageFlagBits::eFragmentShader,
             vk::ImageAspectFlagBits::eColor);
 
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            gDepthTarget->image,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eShaderRead,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::ImageAspectFlagBits::eColor);
+
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            gMotionTarget->image,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eShaderRead,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::ImageAspectFlagBits::eColor);
+
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            gMaskTarget->image,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eShaderRead,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::ImageAspectFlagBits::eColor);
+
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            upscalerTarget->image,
+            vk::AccessFlagBits::eNone,
+            vk::AccessFlagBits::eMemoryRead,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eBottomOfPipe,
+            vk::PipelineStageFlagBits::eTopOfPipe,
+            vk::ImageAspectFlagBits::eColor);
+
+    upscaler->dispatch(commandBuffer, denoiseColorTarget.value(), gDepthTarget.value(),
+                       gMotionTarget.value(), gMaskTarget.value(),
+                       upscalerTarget.value());
+
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            upscalerTarget->image,
+            vk::AccessFlagBits::eMemoryWrite,
+            vk::AccessFlagBits::eShaderRead,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eBottomOfPipe,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::ImageAspectFlagBits::eColor);
+
     // Set viewport
     vk::Viewport presentResViewport;
     presentResViewport.x = 0.0f;
@@ -177,6 +281,11 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     vk::Rect2D presentResScissor;
     presentResScissor.offset = vk::Offset2D(0, 0);
     presentResScissor.extent = vk::Extent2D(engine->windowSize.x, engine->windowSize.y);
+
+    blitOffsets.sourceSize = { 3840, 2160 };
+    blitOffsets.targetSize = engine->windowSize;
+    _blitOffsetsBuffer->copyData(&blitOffsets, sizeof(BlitOffsets));
+    blitPipeline->descriptorSet->writeBuffer(1, flightFrame, _blitOffsetsBuffer->buffer, sizeof(BlitOffsets), vk::DescriptorType::eUniformBuffer);
 
     // Copy color target into swapchain image
     _windowRenderPass->recordBegin(commandBuffer, _windowFramebuffers[swapchainImage]);
