@@ -13,6 +13,7 @@
 #include "engine/pipeline/framebuffer.hpp"
 #include "voxels/camera_controller.hpp"
 #include "voxels/fsr/fsr2_scaler.hpp"
+#include "voxels/voxel_scene.hpp"
 
 class VoxelSDFRenderer : public ARenderer
 {
@@ -41,9 +42,8 @@ private:
     std::optional<DenoiserPipeline> denoisePipeline;
     std::optional<BlitPipeline> blitPipeline;
 
-    std::optional<Texture3D> _sceneTexture;
+    std::optional<VoxelScene> _scene;
     std::optional<Texture2D> _noiseTexture;
-    std::optional<Buffer> _paletteBuffer;
 
     BlitOffsets blitOffsets;
     std::optional<Buffer> _blitOffsetsBuffer;

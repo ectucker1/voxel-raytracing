@@ -11,6 +11,7 @@ file(GLOB_RECURSE RESOURCE_FILES CONFIGURE_DEPENDS
     ${RES_SOURCE}/*.png
     ${RES_SOURCE}/*.exr
     ${RES_SOURCE}/*.hdr
+    ${RES_SOURCE}/*.vox
 )
 
 # Create resource folder in output

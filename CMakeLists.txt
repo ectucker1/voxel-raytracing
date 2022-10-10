@@ -33,6 +33,7 @@ conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTING
 
 # Include prebuilt dependencies
 add_subdirectory(thirdparty/fsr2)
+add_subdirectory(thirdparty/opengametools)
 
 # Include werror utility
 include(werror)

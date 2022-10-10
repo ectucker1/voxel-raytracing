@@ -40,7 +40,7 @@ layout (set = 0, binding = 1) uniform Palette {
 layout (set = 0, binding = 2) uniform sampler2D blueNoise;
 layout (set = 0, binding = 3) uniform sampler2D oldPos;
 
-const uint MAX_RAY_STEPS = 64;
+const uint MAX_RAY_STEPS = 512;
 const uint AO_SAMPLES = 4;
 const uvec2 SCREEN_SIZE = uvec2(1920, 1080);
 const uvec2 NOISE_SIZE = uvec2(512, 512);

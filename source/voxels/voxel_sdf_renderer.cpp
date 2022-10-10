@@ -4,11 +4,8 @@
 #include "engine/commands/command_util.hpp"
 #include <glm/gtx/transform.hpp>
 #include "voxels/screen_quad_push.hpp"
-#include "voxels/material.hpp"
 #include "engine/resource/buffer.hpp"
 #include "engine/resource/texture_2d.hpp"
-
-const glm::uvec3 AREA_SIZE = glm::uvec3(16, 16, 16);
 
 VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
@@ -50,35 +47,15 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
             .color(denoiseColorTarget->imageView)
             .build();
 
-    size_t size = size_t(AREA_SIZE.x) * size_t(AREA_SIZE.y) * size_t(AREA_SIZE.z);
-    std::vector<uint8_t> sceneData = std::vector<uint8_t>(size);
-    for (size_t i = 0; i < size; i++)
-    {
-        bool present = rand() % 2;
-        uint8_t material = rand() % 16 + 1;
-        if (present)
-            sceneData[i] = material;
-        else
-            sceneData[i] = 0;
-    }
-    _sceneTexture = Texture3D(engine, sceneData.data(), AREA_SIZE.x, AREA_SIZE.y, AREA_SIZE.z, 1, vk::Format::eR8Uint);
-
+    _scene = VoxelScene(engine, "../resource/treehouse.vox");
     _noiseTexture = Texture2D(engine, "../resource/blue_noise_rgba.png", 4, vk::Format::eR8G8B8A8Unorm);
-
-    std::array<Material, 256> paletteMaterials = {};
-    for (size_t m = 0; m < paletteMaterials.size(); m++)
-    {
-        paletteMaterials[m].diffuse = glm::vec4(float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, 1.0f);
-    }
-    _paletteBuffer = Buffer(engine, sizeof(paletteMaterials), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    _paletteBuffer->copyData(paletteMaterials.data(), 256 * sizeof(Material));
 
     _blitOffsetsBuffer = Buffer(engine, sizeof(BlitOffsets), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _blitOffsetsBuffer->copyData(&blitOffsets, sizeof(BlitOffsets));
 
     geometryPipeline = VoxelSDFPipeline(VoxelSDFPipeline::build(engine, gPass->renderPass));
-    geometryPipeline->descriptorSet->initImage(0, _sceneTexture->imageView, _sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-    geometryPipeline->descriptorSet->initBuffer(1, _paletteBuffer->buffer, _paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
+    geometryPipeline->descriptorSet->initImage(0, _scene->sceneTexture->imageView, _scene->sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+    geometryPipeline->descriptorSet->initBuffer(1, _scene->paletteBuffer->buffer, _scene->paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
     geometryPipeline->descriptorSet->initImage(2, _noiseTexture->imageView, _noiseTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     geometryPipeline->descriptorSet->initImage(3, gPositionTargets[0].imageView, gPositionTargets[0].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
 
@@ -149,7 +126,7 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     // Set push constants
     ScreenQuadPush constants;
     constants.screenSize = glm::ivec2(renderRes.x, renderRes.y);
-    constants.volumeBounds = AREA_SIZE;
+    constants.volumeBounds = glm::uvec3(_scene->width, _scene->height, _scene->depth);
     constants.camPos = glm::vec4(camera.position, 1);
     constants.camDir = glm::vec4(camera.direction, 0);
     constants.camUp = glm::vec4(camera.up, 0);

@@ -36,6 +36,7 @@ target_link_libraries(voxels_lib
     stb::stb
     fsr2
     ${Vulkan_LIBRARIES}
+    opengametools
 )
 
 # Define library include options
