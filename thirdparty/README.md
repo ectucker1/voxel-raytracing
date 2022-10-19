@@ -5,3 +5,4 @@ This folder contains builds of third-party libraries that cannot easily be integ
 These are as follows:
 - AMD FidelityFX FSR2 (thirdparty/fsr2)
 - opengametools (thirdparty/opengametools)
+- imgui (thirdparty/imgui)

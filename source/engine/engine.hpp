@@ -12,7 +12,7 @@
 #include "util/resource_ring.hpp"
 #include "util/bidirectional_event_queue.hpp"
 
-class GLFWwindow;
+struct GLFWwindow;
 class ARenderer;
 
 #define MAX_FRAMES_IN_FLIGHT 2

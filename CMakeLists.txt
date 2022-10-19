@@ -25,6 +25,7 @@ conan_cmake_configure(
         fmt/8.1.1
         stb/cci.20210910
         catch2/2.13.9
+        imgui/1.88
     GENERATORS
         cmake_find_package_multi
 )
@@ -34,6 +35,7 @@ conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTING
 # Include prebuilt dependencies
 add_subdirectory(thirdparty/fsr2)
 add_subdirectory(thirdparty/opengametools)
+add_subdirectory(thirdparty/imgui)
 
 # Include werror utility
 include(werror)

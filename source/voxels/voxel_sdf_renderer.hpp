@@ -14,6 +14,7 @@
 #include "voxels/camera_controller.hpp"
 #include "voxels/fsr/fsr2_scaler.hpp"
 #include "voxels/voxel_scene.hpp"
+#include "engine/gui/imgui_renderer.hpp"
 
 class VoxelSDFRenderer : public ARenderer
 {
@@ -47,6 +48,8 @@ private:
 
     BlitOffsets blitOffsets;
     std::optional<Buffer> _blitOffsetsBuffer;
+
+    std::optional<ImguiRenderer> _imguiRenderer;
 
     float _time = 0;
 

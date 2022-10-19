@@ -6,6 +6,7 @@
 #include "voxels/screen_quad_push.hpp"
 #include "engine/resource/buffer.hpp"
 #include "engine/resource/texture_2d.hpp"
+#include <imgui.h>
 
 VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
@@ -69,6 +70,8 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
     blitPipeline = BlitPipeline(BlitPipeline::build(engine, _windowRenderPass->renderPass));
     blitPipeline->descriptorSet->initImage(0, upscalerTarget->imageView, upscalerTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     blitPipeline->descriptorSet->initBuffer(1, _blitOffsetsBuffer->buffer, _blitOffsetsBuffer->size, vk::DescriptorType::eUniformBuffer);
+
+    _imguiRenderer = ImguiRenderer(engine, _windowRenderPass->renderPass);
 }
 
 void VoxelSDFRenderer::update(float delta)
@@ -76,6 +79,8 @@ void VoxelSDFRenderer::update(float delta)
     _time += delta;
     camera.update(engine->window, delta);
     upscaler->update(delta);
+    _imguiRenderer->beginFrame();
+    ImGui::ShowDemoWindow();
 }
 
 void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame)
@@ -274,6 +279,7 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
                                      blitPipeline->descriptorSet->getSet(flightFrame),
                                      0, nullptr);
     commandBuffer.draw(3, 1, 0, 0);
+    _imguiRenderer->draw(commandBuffer);
     commandBuffer.endRenderPass();
 
     cmdutil::imageMemoryBarrier(

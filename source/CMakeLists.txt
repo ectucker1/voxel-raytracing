@@ -8,6 +8,7 @@ find_package(fmt CONFIG)
 find_package(glm CONFIG)
 find_package(stb CONFIG)
 find_package(Vulkan REQUIRED)
+find_package(imgui CONFIG)
 
 # Glob for source files
 file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
@@ -37,6 +38,8 @@ target_link_libraries(voxels_lib
     fsr2
     ${Vulkan_LIBRARIES}
     opengametools
+    imgui::imgui
+    imgui_extra
 )
 
 # Define library include options
