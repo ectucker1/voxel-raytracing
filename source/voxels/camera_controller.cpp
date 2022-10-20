@@ -1,13 +1,15 @@
 #include "camera_controller.hpp"
 
 #include <GLFW/glfw3.h>
+#include "engine/engine.hpp"
 
-CameraController* mouseController;
-
-CameraController::CameraController(glm::vec3 position, float yaw, float pitch, float focalLength)
-    : position(position), yaw(yaw), pitch(pitch), focalLength(focalLength)
+CameraController::CameraController(const std::shared_ptr<Engine>& engine, glm::vec3 position, float yaw, float pitch, float focalLength)
+    : engine(engine), position(position), yaw(yaw), pitch(pitch), focalLength(focalLength)
 {
     updateDirectionVectors();
+    engine->inputs.cursorPosCallbacks.emplace_back([&](GLFWwindow* window, double xpos, double ypos) {
+        mouseCallback(window, xpos, ypos);
+    });
 }
 
 void CameraController::updateDirectionVectors()
@@ -25,26 +27,18 @@ void CameraController::updateDirectionVectors()
     direction = normalDir * focalLength;
 }
 
-static void staticMouseCallback(GLFWwindow* window, double xpos, double ypos)
-{
-    mouseController->mouseCallback(window, xpos, ypos);
-}
-
-void CameraController::update(GLFWwindow* window, float delta)
+void CameraController::update(float delta)
 {
     const float cameraSpeed = 50.0f;
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    if (glfwGetKey(engine->window, GLFW_KEY_W) == GLFW_PRESS)
         position += cameraSpeed * normalDir * delta;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    if (glfwGetKey(engine->window, GLFW_KEY_S) == GLFW_PRESS)
         position -= cameraSpeed * normalDir * delta;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    if (glfwGetKey(engine->window, GLFW_KEY_A) == GLFW_PRESS)
         position -= right * cameraSpeed * delta;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    if (glfwGetKey(engine->window, GLFW_KEY_D) == GLFW_PRESS)
         position += right * cameraSpeed * delta;
-
-    mouseController = this;
-    glfwSetCursorPosCallback(window, staticMouseCallback);
 
     updateDirectionVectors();
 }

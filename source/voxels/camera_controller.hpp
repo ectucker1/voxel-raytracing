@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 
 struct GLFWwindow;
+class Engine;
 
 class CameraController
 {
@@ -22,11 +23,13 @@ private:
     double lastCursorX = -1;
     double lastCursorY = -1;
 
+    std::shared_ptr<Engine> engine;
+
 public:
     CameraController() = default;
-    CameraController(glm::vec3 position, float yaw, float pitch, float focalLength);
+    CameraController(const std::shared_ptr<Engine>& engine, glm::vec3 position, float yaw, float pitch, float focalLength);
 
-    void update(GLFWwindow* window, float delta);
+    void update(float delta);
     void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 
 private:

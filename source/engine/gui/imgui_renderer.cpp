@@ -54,6 +54,7 @@ ImguiRenderer::ImguiRenderer(const std::shared_ptr<Engine>& engine, const vk::Re
     pushDeletor([=](const std::shared_ptr<Engine>& engine) {
         engine->device.destroyDescriptorPool(imguiPool);
         ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
     });
 }
 

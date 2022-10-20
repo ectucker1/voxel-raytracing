@@ -10,7 +10,7 @@
 
 VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
-    camera = CameraController(glm::vec3(8, 8, -50), 90.0, 0.0f, 1 / glm::tan(glm::radians(55.0f / 2)));
+    camera = std::make_unique<CameraController>(engine, glm::vec3(8, 8, -50), 90.0f, 0.0f, static_cast<float>(1 / glm::tan(glm::radians(55.0f / 2))));
 
     gColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
                                      vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
@@ -77,7 +77,7 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
 void VoxelSDFRenderer::update(float delta)
 {
     _time += delta;
-    camera.update(engine->window, delta);
+    camera->update(delta);
     upscaler->update(delta);
     _imguiRenderer->beginFrame();
     ImGui::ShowDemoWindow();
@@ -132,10 +132,10 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     ScreenQuadPush constants;
     constants.screenSize = glm::ivec2(renderRes.x, renderRes.y);
     constants.volumeBounds = glm::uvec3(_scene->width, _scene->height, _scene->depth);
-    constants.camPos = glm::vec4(camera.position, 1);
-    constants.camDir = glm::vec4(camera.direction, 0);
-    constants.camUp = glm::vec4(camera.up, 0);
-    constants.camRight = glm::vec4(camera.right, 0);
+    constants.camPos = glm::vec4(camera->position, 1);
+    constants.camDir = glm::vec4(camera->direction, 0);
+    constants.camUp = glm::vec4(camera->up, 0);
+    constants.camRight = glm::vec4(camera->right, 0);
     constants.frame = glm::uvec1(upscaler->frameCount);
     constants.cameraJitter.x = upscaler->jitterX;
     constants.cameraJitter.y = upscaler->jitterY;

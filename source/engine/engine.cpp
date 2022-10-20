@@ -164,7 +164,10 @@ void Engine::initGLFW()
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 
+    Inputs::registerCallbacks(window);
+
     deletionQueue.push_group([&]() {
+        Inputs::unregisterCallbacks(window);
         glfwDestroyWindow(window);
         glfwTerminate();
     });

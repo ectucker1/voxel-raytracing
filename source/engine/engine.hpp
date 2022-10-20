@@ -11,6 +11,7 @@
 #include "util/deletion_queue.hpp"
 #include "util/resource_ring.hpp"
 #include "util/bidirectional_event_queue.hpp"
+#include "engine/input_callbacks.hpp"
 
 struct GLFWwindow;
 class ARenderer;
@@ -25,6 +26,8 @@ public:
     GLFWwindow* window;
     glm::uvec2 windowSize = { 1280, 720 };
     bool windowResized = false;
+
+    InputCallbacks inputs;
 
     BidirectionalEventQueue resizeListeners;
 

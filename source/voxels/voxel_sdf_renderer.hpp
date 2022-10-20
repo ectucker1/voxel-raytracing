@@ -19,7 +19,7 @@
 class VoxelSDFRenderer : public ARenderer
 {
 private:
-    CameraController camera;
+    std::unique_ptr<CameraController> camera;
 
     glm::uvec2 renderRes = { 1920, 1080 };
     glm::uvec2 upscaleRes = { 3840, 2160 };
