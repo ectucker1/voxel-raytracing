@@ -2,27 +2,27 @@
 
 #include <optional>
 #include "util/resource_ring.hpp"
-#include "voxel_sdf_pipeline.hpp"
-#include "denoiser_pipeline.hpp"
-#include "blit_pipeline.hpp"
+#include "voxels/pipeline/voxel_sdf_pipeline.hpp"
+#include "voxels/pipeline/denoiser_pipeline.hpp"
+#include "voxels/pipeline/blit_pipeline.hpp"
 #include "engine/resource/texture_3d.hpp"
 #include "engine/resource/texture_2d.hpp"
 #include "engine/resource/buffer.hpp"
 #include "engine/resource/render_image.hpp"
 #include "engine/pipeline/render_pass.hpp"
 #include "engine/pipeline/framebuffer.hpp"
-#include "voxels/camera_controller.hpp"
+#include "voxels/resource/camera_controller.hpp"
 #include "voxels/fsr/fsr2_scaler.hpp"
-#include "voxels/voxel_scene.hpp"
+#include "voxels/resource/voxel_scene.hpp"
 #include "engine/gui/imgui_renderer.hpp"
+#include "voxels/resource/voxel_render_settings.hpp"
 
 class VoxelSDFRenderer : public ARenderer
 {
 private:
     std::unique_ptr<CameraController> camera;
 
-    glm::uvec2 renderRes = { 1920, 1080 };
-    glm::uvec2 upscaleRes = { 3840, 2160 };
+    std::shared_ptr<VoxelRenderSettings> settings;
 
     std::optional<RenderImage> gColorTarget;
     std::optional<RenderImage> gDepthTarget;
@@ -57,4 +57,14 @@ public:
     VoxelSDFRenderer(const std::shared_ptr<Engine>& engine);
     virtual void update(float delta) override;
     virtual void recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame) override;
+
+private:
+    void initRenderTargets();
+    void initRenderPasses();
+    void initFramebuffers();
+    void initRenderPipelines();
+    void initRenderPipelineTargets();
+    void initUpscaler();
+    void initBlitPipelines();
+    void initBlitPipelineTargets();
 };

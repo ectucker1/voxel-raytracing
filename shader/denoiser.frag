@@ -6,7 +6,18 @@ layout (location = 0) out vec4 outColor;
 
 layout (set = 0, binding = 0) uniform sampler2D inputImage;
 
-const uvec2 SCREEN_SIZE = uvec2(1920, 1080);
+layout (push_constant) uniform constants
+{
+    vec4 camPos;
+    vec4 camDir;
+    vec4 camRight;
+    vec4 camUp;
+    uvec3 volumeBounds;
+    uint frame;
+    ivec2 screenSize;
+    vec2 cameraJitter;
+} pushConstants;
+
 const int RADIUS = 1;
 
 const float PI = 3.14159265358979323846;
@@ -36,7 +47,7 @@ void main()
     {
         for (int j = -RADIUS; j <= RADIUS; j++)
         {
-            vec3 colorSample = texture(inputImage, (gl_FragCoord.xy + vec2(float(i), float(j))) / SCREEN_SIZE).rgb;
+            vec3 colorSample = texture(inputImage, (gl_FragCoord.xy + vec2(float(i), float(j))) / pushConstants.screenSize).rgb;
             float factor = gauss(i, j);
             colorTotal += factor * colorSample;
         }

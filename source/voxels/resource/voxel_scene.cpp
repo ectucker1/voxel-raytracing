@@ -2,7 +2,7 @@
 
 #define OGT_VOX_IMPLEMENTATION
 #include "ogt_vox.h"
-#include "voxels/material.hpp"
+#include "material.hpp"
 #include <fstream>
 
 VoxelScene::VoxelScene(const std::shared_ptr<Engine>& engine, const std::string& filename) : AResource(engine)

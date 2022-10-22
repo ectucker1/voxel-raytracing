@@ -297,6 +297,7 @@ void Engine::initVulkan() {
     descriptorPoolInfo.maxSets = 10;
     descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(sizes.size());
     descriptorPoolInfo.pPoolSizes = sizes.data();
+    descriptorPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
     descriptorPool = device.createDescriptorPool(descriptorPoolInfo);
     deletionQueue.push_group([=]() {
         device.destroy(descriptorPool);

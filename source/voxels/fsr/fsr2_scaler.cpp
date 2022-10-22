@@ -4,7 +4,7 @@
 #include "engine/engine.hpp"
 #include "engine/resource/render_image.hpp"
 
-FSR2Scaler::FSR2Scaler(const std::shared_ptr<Engine>& engine) : AResource(engine)
+FSR2Scaler::FSR2Scaler(const std::shared_ptr<Engine>& engine, glm::uvec2 targetRes) : AResource(engine), targetRes(targetRes)
 {
     _fsrInterface = static_cast<FfxFsr2Interface*>(malloc(sizeof(FfxFsr2Interface)));
     _fsrContext = static_cast<FfxFsr2Context*>(malloc(sizeof(FfxFsr2Context)));
@@ -20,8 +20,8 @@ FSR2Scaler::FSR2Scaler(const std::shared_ptr<Engine>& engine) : AResource(engine
     // Create FSR context
     FfxFsr2ContextDescription contextDesc = {};
     contextDesc.flags = 0;
-    contextDesc.maxRenderSize = { 1920, 1080 };
-    contextDesc.displaySize = { 3840, 2160 };
+    contextDesc.maxRenderSize = { targetRes.x, targetRes.y };
+    contextDesc.displaySize = { targetRes.x, targetRes.y };
     contextDesc.device = engine->device;
     contextDesc.callbacks = *_fsrInterface;
     contextDesc.flags = FFX_FSR2_ENABLE_DEPTH_INVERTED | FFX_FSR2_ENABLE_DEPTH_INFINITE;
@@ -40,11 +40,11 @@ FSR2Scaler::FSR2Scaler(const std::shared_ptr<Engine>& engine) : AResource(engine
     });
 }
 
-void FSR2Scaler::update(float delta)
+void FSR2Scaler::update(float delta, glm::uvec2 renderRes)
 {
     deltaMsec = delta * 1000;
 
-    const int32_t jitterPhaseCount = ffxFsr2GetJitterPhaseCount(1920, 3840);
+    const int32_t jitterPhaseCount = ffxFsr2GetJitterPhaseCount(renderRes.x, targetRes.x);
 
     ffxFsr2GetJitterOffset(&jitterX, &jitterY, frameCount % jitterPhaseCount, jitterPhaseCount);
 
@@ -61,7 +61,7 @@ FfxResource FSR2Scaler::wrapRenderImage(const RenderImage& image)
 
 void FSR2Scaler::dispatch(const vk::CommandBuffer& cmd,
                           const RenderImage& color, const RenderImage& depth, const RenderImage& motion, const RenderImage& mask,
-                          const RenderImage& output)
+                          glm::uvec2 renderRes, const RenderImage& output)
 {
     FfxFsr2DispatchDescription dispatchDescription = {};
 
@@ -88,8 +88,8 @@ void FSR2Scaler::dispatch(const vk::CommandBuffer& cmd,
 
     dispatchDescription.preExposure = 1.0f;
 
-    dispatchDescription.renderSize.width = 1920;
-    dispatchDescription.renderSize.height = 1080;
+    dispatchDescription.renderSize.width = renderRes.x;
+    dispatchDescription.renderSize.height = renderRes.y;
 
     dispatchDescription.cameraFar = INFINITY;
     dispatchDescription.cameraNear = 0.0;

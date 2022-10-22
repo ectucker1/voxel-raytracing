@@ -13,6 +13,8 @@ public:
     int frameCount;
 
 private:
+    glm::uvec2 targetRes;
+
     FfxFsr2Interface* _fsrInterface;
     FfxFsr2Context* _fsrContext;
     void* _fsrScratchBuffer;
@@ -20,13 +22,13 @@ private:
     float deltaMsec;
 
 public:
-    FSR2Scaler(const std::shared_ptr<Engine>& engine);
+    FSR2Scaler(const std::shared_ptr<Engine>& engine, glm::uvec2 targetRes);
 
-    void update(float delta);
+    void update(float delta, glm::uvec2 renderRes);
     void dispatch(const vk::CommandBuffer& cmd,
                   const RenderImage& color, const RenderImage& depth,
                   const RenderImage& motion, const RenderImage& mask,
-                  const RenderImage& output);
+                  glm::uvec2 renderRes, const RenderImage& output);
 
 private:
     FfxResource wrapRenderImage(const RenderImage& image);

@@ -101,6 +101,10 @@ DescriptorSet DescriptorSetBuilder::build()
     descriptorAllocInfo.descriptorSetCount = MAX_FRAMES_IN_FLIGHT;
     descriptorAllocInfo.pSetLayouts = layouts.data();
     auto sceneDescriptorAllocResult = engine->device.allocateDescriptorSets(descriptorAllocInfo);
+    std::vector<vk::DescriptorSet> localSets;
+    descriptorSet.pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->device.freeDescriptorSets(delEngine->descriptorPool, static_cast<uint32_t>(sceneDescriptorAllocResult.size()), sceneDescriptorAllocResult.data());
+    });
 
     // Copy results into our set storage
     descriptorSet.sets = ResourceRing<vk::DescriptorSet>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t i) {

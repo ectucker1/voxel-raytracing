@@ -6,7 +6,7 @@
 
 class Engine;
 
-class RenderImage : AResource
+class RenderImage : public AResource
 {
 public:
     uint32_t width, height = 0;

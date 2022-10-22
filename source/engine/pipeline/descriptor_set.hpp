@@ -8,7 +8,7 @@
 // Abstraction around creating Vulkan descriptor sets.
 // These should typically be created by pipelines to bind shader uniforms.
 // Each DescriptorSet object will implicitly create a descriptor set for each flight frame.
-class DescriptorSet : AResource
+class DescriptorSet : public AResource
 {
 public:
     // The layout of the descriptor set

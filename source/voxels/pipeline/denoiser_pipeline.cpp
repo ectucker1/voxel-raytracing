@@ -2,7 +2,7 @@
 
 #include "engine/engine.hpp"
 #include "engine/resource/shader_module.hpp"
-#include "voxels/screen_quad_push.hpp"
+#include "voxels/resource/screen_quad_push.hpp"
 
 DenoiserPipeline DenoiserPipeline::build(const std::shared_ptr<Engine>& engine, const vk::RenderPass& pass)
 {
@@ -55,9 +55,13 @@ vk::PipelineLayoutCreateInfo DenoiserPipeline::buildPipelineLayout()
     pushConstantRange->stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
     // Shader uniforms
-    descriptorSet = DescriptorSetBuilder(engine)
-            .image(0, vk::ShaderStageFlagBits::eFragment)
-            .build();
+    auto localDescriptorSet = DescriptorSetBuilder(engine)
+        .image(0, vk::ShaderStageFlagBits::eFragment)
+        .build();
+    descriptorSet = localDescriptorSet;
+    pushDeletor([=](const std::shared_ptr<Engine>&) {
+        localDescriptorSet.destroy();
+    });
 
     // Actual layout
     vk::PipelineLayoutCreateInfo layoutInfo;

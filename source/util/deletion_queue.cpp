@@ -34,12 +34,14 @@ void DeletionQueue::destroy_group(uint32_t group)
     auto groupIt = _deletors.find(group);
     if (groupIt != _deletors.end())
     {
-        for (const auto& deletor : groupIt->second)
+        std::vector<std::function<void()>> foundDeletors;
+        foundDeletors.insert(foundDeletors.end(), groupIt->second.begin(), groupIt->second.end());
+        _deletors.erase(group);
+        for (const auto& deletor : foundDeletors)
         {
             deletor();
         }
     }
-    _deletors.erase(group);
 }
 
 
@@ -49,14 +51,7 @@ void DeletionQueue::destroy_all()
     {
         uint32_t group = _groups.front();
         _groups.pop_front();
-        auto groupIt = _deletors.find(group);
-        if (groupIt != _deletors.end())
-        {
-            for (const auto& deletor : groupIt->second)
-            {
-                deletor();
-            }
-        }
+        destroy_group(group);
     }
 
     _groups.clear();
