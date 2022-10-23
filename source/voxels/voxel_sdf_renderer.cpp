@@ -8,6 +8,7 @@
 #include "engine/resource/texture_2d.hpp"
 #include <imgui.h>
 #include <voxels/voxel_settings_gui.hpp>
+#include <glm/gtx/functions.hpp>
 
 VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
@@ -17,6 +18,62 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
 
     _scene = VoxelScene(engine, "../resource/treehouse.vox");
     _noiseTexture = Texture2D(engine, "../resource/blue_noise_rgba.png", 4, vk::Format::eR8G8B8A8Unorm);
+
+    // Denoise arameters
+    _denoiseParamsBuffer = ResourceRing<Buffer>::fromFunc(10, [&](uint32_t i) {
+        float phiColor0 = 20.4f;
+        float phiNormal0 = 1E-2f;
+        float phiPos0 = 1E-1f;
+        DenoiserParams params = {};
+        params.phiColor = 1.0f / i * phiColor0;
+        params.phiNormal = 1.0f / i * phiNormal0;
+        params.phiPos = 1.0f / i * phiPos0;
+        params.stepWidth = i * 2.0f + 1.0f;
+        Buffer buffer = Buffer(engine, sizeof(DenoiserParams), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU);
+        buffer.copyData(&params, buffer.size);
+        return buffer;
+    });
+
+    // Kernel offsets
+    glm::vec2 offsets[25];
+    for (int i = 0, y = -2; y <= 2; y++)
+    {
+        for (int x = -2; x <= 2; x++, i++)
+        {
+            offsets[i] = glm::vec2(x, y);
+        }
+    }
+    _denoiseOffsetBuffer = Buffer(engine, sizeof(offsets), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _denoiseOffsetBuffer->copyData(offsets, _denoiseOffsetBuffer->size);
+
+    // Kernel weights
+    float weights[25];
+    for (int i = 0, y = -2; y <= 2; y++)
+    {
+        for (int x = -2; x <= 2; x++, i++)
+        {
+            weights[i] = glm::gauss(glm::vec2(x, y), glm::vec2(0, 0), glm::vec2(2.0, 2.0));
+        }
+    }
+    _denoiseKernelBuffer = Buffer(engine, sizeof(weights), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _denoiseKernelBuffer->copyData(weights, _denoiseOffsetBuffer->size);
+
+    _denoiseDescriptors = ResourceRing<DescriptorSet>::fromFunc(10, [&](uint32_t) {
+        return DescriptorSetBuilder(engine)
+            .image(0, vk::ShaderStageFlagBits::eFragment)
+            .image(1, vk::ShaderStageFlagBits::eFragment)
+            .image(2, vk::ShaderStageFlagBits::eFragment)
+            .buffer(3, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
+            .buffer(4, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
+            .buffer(5, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
+            .build();
+    });
+    for (uint32_t i = 0; i < 10; i++)
+    {
+        _denoiseDescriptors[i].initBuffer(3, _denoiseParamsBuffer[i].buffer, _denoiseParamsBuffer[i].size, vk::DescriptorType::eUniformBuffer);
+        _denoiseDescriptors[i].initBuffer(4, _denoiseKernelBuffer->buffer, _denoiseKernelBuffer->size, vk::DescriptorType::eUniformBuffer);
+        _denoiseDescriptors[i].initBuffer(5, _denoiseOffsetBuffer->buffer, _denoiseOffsetBuffer->size, vk::DescriptorType::eUniformBuffer);
+    }
 
     _blitOffsetsBuffer = Buffer(engine, sizeof(BlitOffsets), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _blitOffsetsBuffer->copyData(&blitOffsets, sizeof(BlitOffsets));
@@ -45,9 +102,11 @@ void VoxelSDFRenderer::initRenderTargets()
                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
     gPositionTargets = ResourceRing<RenderImage>::fromArgs(2, engine, renderRes.x, renderRes.y, vk::Format::eR32G32B32A32Sfloat,
                                                            vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+    gNormalTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Snorm,
+                              vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
 
-    denoiseColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
-                                     vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+    denoiseColorTarget = ResourceRing<RenderImage>::fromArgs(2, engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
+                                                             vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
 
     settings->renderResListeners.push([&]() {
         engine->device.waitIdle();
@@ -58,7 +117,10 @@ void VoxelSDFRenderer::initRenderTargets()
         gPositionTargets.destroy([&](RenderImage image) {
             image.destroy();
         });
-        denoiseColorTarget->destroy();
+        gNormalTarget->destroy();
+        denoiseColorTarget.destroy([&](RenderImage image) {
+            image.destroy();
+        });
     },
                                       [&]() {
         initRenderTargets();
@@ -73,16 +135,21 @@ void VoxelSDFRenderer::initRenderPasses()
         .color(2, gMotionTarget->format, glm::vec4(0.0))
         .color(3, gMaskTarget->format, glm::vec4(0.0))
         .color(4, gPositionTargets[0].format, glm::vec4(0.0))
+        .color(5, gNormalTarget->format, glm::vec4(0.0))
         .build();
 
-    denoisePass = RenderPassBuilder(engine)
-        .color(0, denoiseColorTarget->format, glm::vec4(0.0))
-        .build();
+    denoisePass = ResourceRing<RenderPass>::fromFunc(2, [&](uint32_t i) {
+        return RenderPassBuilder(engine)
+            .color(0, denoiseColorTarget[i].format, glm::vec4(0.0))
+            .build();
+    });
 
     settings->renderResListeners.push([&]() {
         engine->device.waitIdle();
         gPass->destroy();
-        denoisePass->destroy();
+        denoisePass.destroy([&](RenderPass pass) {
+            pass.destroy();
+        });
     },
                                       [&]() {
         initRenderPasses();
@@ -98,19 +165,24 @@ void VoxelSDFRenderer::initFramebuffers()
             .color(gMotionTarget->imageView)
             .color(gMaskTarget->imageView)
             .color(gPositionTargets[n].imageView)
+            .color(gNormalTarget->imageView)
             .build();
     });
 
-    denoiseFramebuffer = FramebufferBuilder(engine, denoisePass->renderPass, settings->renderResolution())
-        .color(denoiseColorTarget->imageView)
-        .build();
+    denoiseFramebuffer = ResourceRing<Framebuffer>::fromFunc(2, [&](uint32_t n) {
+       return FramebufferBuilder(engine, denoisePass[n].renderPass, settings->renderResolution())
+           .color(denoiseColorTarget[n].imageView)
+           .build();
+    });
 
     settings->renderResListeners.push([&]() {
         engine->device.waitIdle();
         gFramebuffers.destroy([&](Framebuffer framebuffer) {
             framebuffer.destroy();
         });
-        denoiseFramebuffer->destroy();
+        denoiseFramebuffer.destroy([&](Framebuffer framebuffer) {
+            framebuffer.destroy();
+        });
     },
                                       [&]() {
         initFramebuffers();
@@ -121,7 +193,7 @@ void VoxelSDFRenderer::initRenderPipelines()
 {
     geometryPipeline = VoxelSDFPipeline(VoxelSDFPipeline::build(engine, gPass->renderPass));
 
-    denoisePipeline = DenoiserPipeline(DenoiserPipeline::build(engine, denoisePass->renderPass));
+    denoisePipeline = DenoiserPipeline(DenoiserPipeline::build(engine, denoisePass[0].renderPass));
 
     initRenderPipelineTargets();
 }
@@ -132,8 +204,6 @@ void VoxelSDFRenderer::initRenderPipelineTargets()
     geometryPipeline->descriptorSet->initBuffer(1, _scene->paletteBuffer->buffer, _scene->paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
     geometryPipeline->descriptorSet->initImage(2, _noiseTexture->imageView, _noiseTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     geometryPipeline->descriptorSet->initImage(3, gPositionTargets[0].imageView, gPositionTargets[0].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-
-    denoisePipeline->descriptorSet->initImage(0, gColorTarget->imageView, gColorTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
 
     settings->renderResListeners.push([&]() {}, [&]() {
         initRenderPipelineTargets();
@@ -265,34 +335,6 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
             vk::PipelineStageFlagBits::eFragmentShader,
             vk::ImageAspectFlagBits::eColor);
 
-    // Start denoise renderpass
-    denoisePass->recordBegin(commandBuffer, denoiseFramebuffer.value());
-    // Bind pipeline
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, denoisePipeline->pipeline);
-    // Set viewport
-    commandBuffer.setViewport(0, 1, &renderResViewport);
-    // Set scissor
-    commandBuffer.setScissor(0, 1, &renderResScissor);
-    // Bind descriptor sets
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, denoisePipeline->layout,
-                                     0, 1,
-                                     denoisePipeline->descriptorSet->getSet(flightFrame),
-                                     0, nullptr);
-    commandBuffer.draw(3, 1, 0, 0);
-    // End denoise renderpass
-    commandBuffer.endRenderPass();
-
-    cmdutil::imageMemoryBarrier(
-            commandBuffer,
-            denoiseColorTarget->image,
-            vk::AccessFlagBits::eColorAttachmentWrite,
-            vk::AccessFlagBits::eShaderRead,
-            vk::ImageLayout::eColorAttachmentOptimal,
-            vk::ImageLayout::eShaderReadOnlyOptimal,
-            vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            vk::PipelineStageFlagBits::eFragmentShader,
-            vk::ImageAspectFlagBits::eColor);
-
     cmdutil::imageMemoryBarrier(
             commandBuffer,
             gDepthTarget->image,
@@ -328,6 +370,75 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
 
     cmdutil::imageMemoryBarrier(
             commandBuffer,
+            gPositionTargets[flightFrame].image,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eShaderRead,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::ImageAspectFlagBits::eColor);
+
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
+            gNormalTarget->image,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::AccessFlagBits::eShaderRead,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::ImageLayout::eShaderReadOnlyOptimal,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::ImageAspectFlagBits::eColor);
+
+    int lastOutput = 0;
+    for (int i = 0; i < 2; i++)
+    {
+        int ping = i % 2;
+
+        // Use color output on first frame, last denoiser pass otherwise
+        if (i == 0)
+            _denoiseDescriptors[i].writeImage(0, flightFrame, gColorTarget->imageView, gColorTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+        else
+            _denoiseDescriptors[i].writeImage(0, flightFrame, denoiseColorTarget[lastOutput].imageView, denoiseColorTarget[lastOutput].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+        // Normal and position inputs
+        _denoiseDescriptors[i].writeImage(1, flightFrame, gNormalTarget->imageView, gNormalTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+        _denoiseDescriptors[i].writeImage(2, flightFrame, gPositionTargets[flightFrame].imageView, gPositionTargets[flightFrame].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+        // Parameters
+        _denoiseDescriptors[i].writeBuffer(3, flightFrame, _denoiseParamsBuffer[i].buffer, _denoiseParamsBuffer[i].size, vk::DescriptorType::eUniformBuffer);
+
+        // Start denoise renderpass
+        denoisePass[ping].recordBegin(commandBuffer, denoiseFramebuffer[ping]);
+        // Bind pipeline
+        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, denoisePipeline->pipeline);
+        // Set viewport
+        commandBuffer.setViewport(0, 1, &renderResViewport);
+        // Set scissor
+        commandBuffer.setScissor(0, 1, &renderResScissor);
+        // Bind descriptor sets
+        commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, denoisePipeline->layout,
+                                         0, 1,
+                                         _denoiseDescriptors[i].getSet(flightFrame),
+                                         0, nullptr);
+        commandBuffer.draw(3, 1, 0, 0);
+        // End denoise renderpass
+        commandBuffer.endRenderPass();
+
+        cmdutil::imageMemoryBarrier(
+                commandBuffer,
+                denoiseColorTarget[ping].image,
+                vk::AccessFlagBits::eColorAttachmentWrite,
+                vk::AccessFlagBits::eShaderRead,
+                vk::ImageLayout::eColorAttachmentOptimal,
+                vk::ImageLayout::eShaderReadOnlyOptimal,
+                vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                vk::PipelineStageFlagBits::eFragmentShader,
+                vk::ImageAspectFlagBits::eColor);
+
+        lastOutput = ping;
+    }
+
+    cmdutil::imageMemoryBarrier(
+            commandBuffer,
             upscalerTarget->image,
             vk::AccessFlagBits::eNone,
             vk::AccessFlagBits::eMemoryRead,
@@ -337,7 +448,7 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
             vk::PipelineStageFlagBits::eTopOfPipe,
             vk::ImageAspectFlagBits::eColor);
 
-    upscaler->dispatch(commandBuffer, denoiseColorTarget.value(), gDepthTarget.value(),
+    upscaler->dispatch(commandBuffer, denoiseColorTarget[lastOutput], gDepthTarget.value(),
                        gMotionTarget.value(), gMaskTarget.value(),
                        settings->renderResolution(), upscalerTarget.value());
 

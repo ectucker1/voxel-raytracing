@@ -57,6 +57,11 @@ vk::PipelineLayoutCreateInfo DenoiserPipeline::buildPipelineLayout()
     // Shader uniforms
     auto localDescriptorSet = DescriptorSetBuilder(engine)
         .image(0, vk::ShaderStageFlagBits::eFragment)
+        .image(1, vk::ShaderStageFlagBits::eFragment)
+        .image(2, vk::ShaderStageFlagBits::eFragment)
+        .buffer(3, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
+        .buffer(4, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
+        .buffer(5, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
         .build();
     descriptorSet = localDescriptorSet;
     pushDeletor([=](const std::shared_ptr<Engine>&) {

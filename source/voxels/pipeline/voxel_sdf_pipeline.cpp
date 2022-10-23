@@ -87,7 +87,7 @@ vk::PipelineColorBlendStateCreateInfo VoxelSDFPipeline::buildColorBlendAttachmen
             | vk::ColorComponentFlagBits::eB
             | vk::ColorComponentFlagBits::eA;
     blendState.blendEnable = false;
-    for (size_t i = 0; i < 5; i++)
+    for (size_t i = 0; i < 6; i++)
         colorBlendAttachments.push_back(blendState);
 
     // No blending ops needed

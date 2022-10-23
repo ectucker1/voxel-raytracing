@@ -7,6 +7,7 @@ layout (location = 1) out float outDepth;
 layout (location = 2) out vec2 outMotion;
 layout (location = 3) out float outMask;
 layout (location = 4) out vec3 outPos;
+layout (location = 5) out vec3 outNormal;
 
 layout (push_constant) uniform constants
 {
@@ -178,6 +179,7 @@ void main()
         // TODO use inverse of camera matrix to reproject old position and calculate motion vectors
         outMotion = vec2(0);
         outPos = result.pos;
+        outNormal = result.normal;
     }
     else
     {
@@ -186,5 +188,6 @@ void main()
         outMask = 0.0;
         outMotion = vec2(0);
         outPos = result.pos;
+        outNormal = vec3(0, 0, 0);
     }
 }

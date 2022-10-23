@@ -290,11 +290,11 @@ void Engine::initVulkan() {
     // Create descriptor pool
     std::vector<vk::DescriptorPoolSize> sizes =
     {
-        { vk::DescriptorType::eUniformBuffer, 10 },
-        { vk::DescriptorType::eCombinedImageSampler, 10 }
+        { vk::DescriptorType::eUniformBuffer, 1000 },
+        { vk::DescriptorType::eCombinedImageSampler, 1000 }
     };
     vk::DescriptorPoolCreateInfo descriptorPoolInfo {};
-    descriptorPoolInfo.maxSets = 10;
+    descriptorPoolInfo.maxSets = 100;
     descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(sizes.size());
     descriptorPoolInfo.pPoolSizes = sizes.data();
     descriptorPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;

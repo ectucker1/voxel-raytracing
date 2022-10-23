@@ -17,6 +17,14 @@
 #include "engine/gui/imgui_renderer.hpp"
 #include "voxels/resource/voxel_render_settings.hpp"
 
+struct DenoiserParams
+{
+    float phiColor;
+    float phiNormal;
+    float phiPos;
+    float stepWidth;
+};
+
 class VoxelSDFRenderer : public ARenderer
 {
 private:
@@ -29,15 +37,20 @@ private:
     std::optional<RenderImage> gMotionTarget;
     std::optional<RenderImage> gMaskTarget;
     ResourceRing<RenderImage> gPositionTargets;
+    std::optional<RenderImage> gNormalTarget;
     std::optional<RenderPass> gPass;
     ResourceRing<Framebuffer> gFramebuffers;
 
     std::optional<FSR2Scaler> upscaler;
     std::optional<RenderImage> upscalerTarget;
 
-    std::optional<RenderImage> denoiseColorTarget;
-    std::optional<RenderPass> denoisePass;
-    std::optional<Framebuffer> denoiseFramebuffer;
+    ResourceRing<Buffer> _denoiseParamsBuffer;
+    std::optional<Buffer> _denoiseKernelBuffer;
+    std::optional<Buffer> _denoiseOffsetBuffer;
+    ResourceRing<DescriptorSet> _denoiseDescriptors;
+    ResourceRing<RenderImage> denoiseColorTarget;
+    ResourceRing<RenderPass> denoisePass;
+    ResourceRing<Framebuffer> denoiseFramebuffer;
 
     std::optional<VoxelSDFPipeline> geometryPipeline;
     std::optional<DenoiserPipeline> denoisePipeline;
