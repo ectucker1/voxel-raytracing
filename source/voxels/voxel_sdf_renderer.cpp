@@ -390,51 +390,56 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
             vk::PipelineStageFlagBits::eFragmentShader,
             vk::ImageAspectFlagBits::eColor);
 
-    int lastOutput = 0;
-    for (int i = 0; i < 2; i++)
+    const RenderImage* denoiserOutput = &gColorTarget.value();
+    if (settings->denoiserSettings.enable)
     {
-        int ping = i % 2;
+        int lastOutput = 0;
+        for (int i = 0; i < settings->denoiserSettings.iterations; i++)
+        {
+            int ping = i % 2;
 
-        // Use color output on first frame, last denoiser pass otherwise
-        if (i == 0)
-            _denoiseDescriptors[i].writeImage(0, flightFrame, gColorTarget->imageView, gColorTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-        else
-            _denoiseDescriptors[i].writeImage(0, flightFrame, denoiseColorTarget[lastOutput].imageView, denoiseColorTarget[lastOutput].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-        // Normal and position inputs
-        _denoiseDescriptors[i].writeImage(1, flightFrame, gNormalTarget->imageView, gNormalTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-        _denoiseDescriptors[i].writeImage(2, flightFrame, gPositionTargets[flightFrame].imageView, gPositionTargets[flightFrame].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-        // Parameters
-        _denoiseDescriptors[i].writeBuffer(3, flightFrame, _denoiseParamsBuffer[i].buffer, _denoiseParamsBuffer[i].size, vk::DescriptorType::eUniformBuffer);
+            // Use color output on first frame, last denoiser pass otherwise
+            if (i == 0)
+                _denoiseDescriptors[i].writeImage(0, flightFrame, gColorTarget->imageView, gColorTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+            else
+                _denoiseDescriptors[i].writeImage(0, flightFrame, denoiseColorTarget[lastOutput].imageView, denoiseColorTarget[lastOutput].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+            // Normal and position inputs
+            _denoiseDescriptors[i].writeImage(1, flightFrame, gNormalTarget->imageView, gNormalTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+            _denoiseDescriptors[i].writeImage(2, flightFrame, gPositionTargets[flightFrame].imageView, gPositionTargets[flightFrame].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+            // Parameters
+            _denoiseDescriptors[i].writeBuffer(3, flightFrame, _denoiseParamsBuffer[i].buffer, _denoiseParamsBuffer[i].size, vk::DescriptorType::eUniformBuffer);
 
-        // Start denoise renderpass
-        denoisePass[ping].recordBegin(commandBuffer, denoiseFramebuffer[ping]);
-        // Bind pipeline
-        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, denoisePipeline->pipeline);
-        // Set viewport
-        commandBuffer.setViewport(0, 1, &renderResViewport);
-        // Set scissor
-        commandBuffer.setScissor(0, 1, &renderResScissor);
-        // Bind descriptor sets
-        commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, denoisePipeline->layout,
-                                         0, 1,
-                                         _denoiseDescriptors[i].getSet(flightFrame),
-                                         0, nullptr);
-        commandBuffer.draw(3, 1, 0, 0);
-        // End denoise renderpass
-        commandBuffer.endRenderPass();
+            // Start denoise renderpass
+            denoisePass[ping].recordBegin(commandBuffer, denoiseFramebuffer[ping]);
+            // Bind pipeline
+            commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, denoisePipeline->pipeline);
+            // Set viewport
+            commandBuffer.setViewport(0, 1, &renderResViewport);
+            // Set scissor
+            commandBuffer.setScissor(0, 1, &renderResScissor);
+            // Bind descriptor sets
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, denoisePipeline->layout,
+                                             0, 1,
+                                             _denoiseDescriptors[i].getSet(flightFrame),
+                                             0, nullptr);
+            commandBuffer.draw(3, 1, 0, 0);
+            // End denoise renderpass
+            commandBuffer.endRenderPass();
 
-        cmdutil::imageMemoryBarrier(
-                commandBuffer,
-                denoiseColorTarget[ping].image,
-                vk::AccessFlagBits::eColorAttachmentWrite,
-                vk::AccessFlagBits::eShaderRead,
-                vk::ImageLayout::eColorAttachmentOptimal,
-                vk::ImageLayout::eShaderReadOnlyOptimal,
-                vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                vk::PipelineStageFlagBits::eFragmentShader,
-                vk::ImageAspectFlagBits::eColor);
+            cmdutil::imageMemoryBarrier(
+                    commandBuffer,
+                    denoiseColorTarget[ping].image,
+                    vk::AccessFlagBits::eColorAttachmentWrite,
+                    vk::AccessFlagBits::eShaderRead,
+                    vk::ImageLayout::eColorAttachmentOptimal,
+                    vk::ImageLayout::eShaderReadOnlyOptimal,
+                    vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                    vk::PipelineStageFlagBits::eFragmentShader,
+                    vk::ImageAspectFlagBits::eColor);
 
-        lastOutput = ping;
+            lastOutput = ping;
+        }
+        denoiserOutput = &denoiseColorTarget[lastOutput];
     }
 
     cmdutil::imageMemoryBarrier(
@@ -448,20 +453,23 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
             vk::PipelineStageFlagBits::eTopOfPipe,
             vk::ImageAspectFlagBits::eColor);
 
-    upscaler->dispatch(commandBuffer, denoiseColorTarget[lastOutput], gDepthTarget.value(),
-                       gMotionTarget.value(), gMaskTarget.value(),
-                       settings->renderResolution(), upscalerTarget.value());
+    if (settings->fsrSetttings.enable)
+    {
+        upscaler->dispatch(commandBuffer, *denoiserOutput, gDepthTarget.value(),
+                           gMotionTarget.value(), gMaskTarget.value(),
+                           settings->renderResolution(), upscalerTarget.value());
 
-    cmdutil::imageMemoryBarrier(
-            commandBuffer,
-            upscalerTarget->image,
-            vk::AccessFlagBits::eMemoryWrite,
-            vk::AccessFlagBits::eShaderRead,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eShaderReadOnlyOptimal,
-            vk::PipelineStageFlagBits::eBottomOfPipe,
-            vk::PipelineStageFlagBits::eFragmentShader,
-            vk::ImageAspectFlagBits::eColor);
+        cmdutil::imageMemoryBarrier(
+                commandBuffer,
+                upscalerTarget->image,
+                vk::AccessFlagBits::eMemoryWrite,
+                vk::AccessFlagBits::eShaderRead,
+                vk::ImageLayout::eUndefined,
+                vk::ImageLayout::eShaderReadOnlyOptimal,
+                vk::PipelineStageFlagBits::eBottomOfPipe,
+                vk::PipelineStageFlagBits::eFragmentShader,
+                vk::ImageAspectFlagBits::eColor);
+    }
 
     // Set viewport
     vk::Viewport presentResViewport;
@@ -480,6 +488,14 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     blitOffsets.sourceSize = { settings->targetResolution.x, settings->targetResolution.y };
     blitOffsets.targetSize = engine->windowSize;
     _blitOffsetsBuffer->copyData(&blitOffsets, sizeof(BlitOffsets));
+    if (settings->fsrSetttings.enable)
+    {
+        blitPipeline->descriptorSet->writeImage(0, flightFrame, upscalerTarget->imageView, upscalerTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+    }
+    else
+    {
+        blitPipeline->descriptorSet->writeImage(0,flightFrame, denoiserOutput->imageView, denoiserOutput->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+    }
     blitPipeline->descriptorSet->writeBuffer(1, flightFrame, _blitOffsetsBuffer->buffer, sizeof(BlitOffsets), vk::DescriptorType::eUniformBuffer);
 
     // Copy color target into swapchain image

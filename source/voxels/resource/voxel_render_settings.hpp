@@ -12,6 +12,18 @@ enum class FsrScaling : uint32_t
     ULTRA_PERFORMANCE = 30
 };
 
+struct FsrSettings
+{
+    bool enable = true;
+    FsrScaling scaling = FsrScaling::BALANCED;
+};
+
+struct DenoiserSettings
+{
+    bool enable = true;
+    int iterations = 3;
+};
+
 struct AmbientOcclusionSettings
 {
     uint32_t numSamples = 4;
@@ -25,8 +37,9 @@ public:
 
 public:
     glm::uvec2 targetResolution = { 3840, 2160 };
-    FsrScaling scaling = FsrScaling::BALANCED;
 
+    FsrSettings fsrSetttings = {};
+    DenoiserSettings denoiserSettings = {};
     AmbientOcclusionSettings occlusionSettings = {};
 
 public:

@@ -66,21 +66,33 @@ void VoxelSettingsGui::draw(const std::shared_ptr<VoxelRenderSettings>& settings
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo("FSR Quality", scalingName(settings->scaling).c_str()))
+        if (ImGui::Checkbox("Enable FSR", &settings->fsrSetttings.enable))
         {
-            for (const FsrScaling scaling : scalingOptions)
+            settings->renderResListeners.fireListeners();
+        }
+
+        if (ImGui::BeginCombo("FSR Quality", scalingName(settings->fsrSetttings.scaling).c_str()))
+        {
+            for (const FsrScaling scaling: scalingOptions)
             {
-                if (ImGui::Selectable(scalingName(scaling).c_str(), settings->scaling == scaling))
+                if (ImGui::Selectable(scalingName(scaling).c_str(), settings->fsrSetttings.scaling == scaling))
                 {
-                    settings->scaling = scaling;
+                    settings->fsrSetttings.scaling = scaling;
                     settings->renderResListeners.fireListeners();
                 }
 
-                if (settings->scaling == scaling)
+                if (settings->fsrSetttings.scaling == scaling)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
+    }
+
+    if (ImGui::CollapsingHeader("Denoiser", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Checkbox("Enable Denoiser", &settings->denoiserSettings.enable);
+
+        ImGui::SliderInt("Denoiser Iterations", &settings->denoiserSettings.iterations, 1, 10);
     }
 
     ImGui::End();
