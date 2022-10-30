@@ -60,6 +60,7 @@ vk::PipelineLayoutCreateInfo VoxelSDFPipeline::buildPipelineLayout()
         .buffer(1, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
         .image(2, vk::ShaderStageFlagBits::eFragment)
         .image(3, vk::ShaderStageFlagBits::eFragment)
+        .buffer(4, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
         .build();
     descriptorSet = localDescriptorSet;
     pushDeletor([=](const std::shared_ptr<Engine>&) {

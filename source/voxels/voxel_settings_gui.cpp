@@ -106,5 +106,10 @@ void VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_
         }
     }
 
+    if (ImGui::CollapsingHeader("Ambient Occlusion", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::SliderInt("Occlusion Samples", &settings->occlusionSettings.numSamples, 1, 16);
+    }
+
     ImGui::End();
 }

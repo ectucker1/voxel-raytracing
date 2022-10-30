@@ -17,6 +17,7 @@
 #include "engine/gui/imgui_renderer.hpp"
 #include "voxels/resource/voxel_render_settings.hpp"
 #include "voxels/blur_denoiser.hpp"
+#include "voxels/resource/parameters.hpp"
 
 class VoxelSDFRenderer : public ARenderer
 {
@@ -45,6 +46,9 @@ private:
 
     std::optional<VoxelScene> _scene;
     std::optional<Texture2D> _noiseTexture;
+
+    VolumeParameters volumeParameters;
+    std::optional<Buffer> _volumeParametersBuffer;
 
     BlitOffsets blitOffsets;
     std::optional<Buffer> _blitOffsetsBuffer;

@@ -30,7 +30,7 @@ struct DenoiserSettings
 
 struct AmbientOcclusionSettings
 {
-    uint32_t numSamples = 4;
+    int numSamples = 4;
 };
 
 class VoxelRenderSettings

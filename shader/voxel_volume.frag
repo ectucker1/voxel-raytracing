@@ -40,9 +40,11 @@ layout (set = 0, binding = 1) uniform Palette {
 };
 layout (set = 0, binding = 2) uniform sampler2D blueNoise;
 layout (set = 0, binding = 3) uniform sampler2D oldPos;
+layout (set = 0, binding = 4) uniform Parameters {
+    uint aoSamples;
+};
 
 const uint MAX_RAY_STEPS = 512;
-const uint AO_SAMPLES = 4;
 const uvec2 NOISE_SIZE = uvec2(512, 512);
 
 // Scene definition from volume
@@ -161,8 +163,8 @@ void main()
         vec4 ambientColor = vec4(0.0);
 
         // For each ambient occulsion sample
-        float sampleFrac = 1.0f / AO_SAMPLES;
-        for (uint i = 0; i < AO_SAMPLES; i++)
+        float sampleFrac = 1.0f / aoSamples;
+        for (uint i = 0; i < aoSamples; i++)
         {
             // Generate a random direction around the normal
             vec3 dir = result.normal + randomDir(i);

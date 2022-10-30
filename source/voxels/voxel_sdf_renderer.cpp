@@ -2,11 +2,9 @@
 
 #include "engine/engine.hpp"
 #include "engine/commands/command_util.hpp"
-#include <glm/gtx/transform.hpp>
 #include "voxels/resource/screen_quad_push.hpp"
 #include "engine/resource/buffer.hpp"
 #include "engine/resource/texture_2d.hpp"
-#include <imgui.h>
 #include <voxels/voxel_settings_gui.hpp>
 #include <glm/gtx/functions.hpp>
 
@@ -21,6 +19,9 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
 
     _blitOffsetsBuffer = Buffer(engine, sizeof(BlitOffsets), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _blitOffsetsBuffer->copyData(&blitOffsets, sizeof(BlitOffsets));
+
+    _volumeParametersBuffer = Buffer(engine, sizeof(VolumeParameters), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _volumeParametersBuffer->copyData(&volumeParameters, sizeof(VolumeParameters));
 
     initRenderTargets();
     initRenderPasses();
@@ -236,6 +237,10 @@ void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, ui
     constants.cameraJitter.x = upscaler->jitterX;
     constants.cameraJitter.y = upscaler->jitterY;
     commandBuffer.pushConstants(geometryPipeline->layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(ScreenQuadPush), &constants);
+    // Set parameters buffer
+    volumeParameters.aoSamples = settings->occlusionSettings.numSamples;
+    _volumeParametersBuffer->copyData(&volumeParameters, sizeof(VolumeParameters));
+    geometryPipeline->descriptorSet->writeBuffer(4, flightFrame, _volumeParametersBuffer->buffer, sizeof(VolumeParameters), vk::DescriptorType::eUniformBuffer);
     commandBuffer.setViewport(0, 1, &renderResViewport);
     // Set scissor
     commandBuffer.setScissor(0, 1, &renderResScissor);
