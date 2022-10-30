@@ -22,6 +22,10 @@ struct DenoiserSettings
 {
     bool enable = true;
     int iterations = 3;
+    float phiColor0 = 20.4f;
+    float phiNormal0 = 1E-2f;
+    float phiPos0 = 1E-1f;
+    float stepWidth = 2.0f;
 };
 
 struct AmbientOcclusionSettings

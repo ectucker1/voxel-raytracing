@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <cpp/imgui_stdlib.h>
 #include <fmt/format.h>
+#include "voxels/voxel_sdf_renderer.hpp"
 
 const std::vector<FsrScaling> scalingOptions = {
     FsrScaling::NONE,
@@ -43,7 +44,7 @@ static std::string resolutionName(glm::uvec2 resolution)
     return fmt::format("{}x{}", resolution.x, resolution.y);
 }
 
-void VoxelSettingsGui::draw(const std::shared_ptr<VoxelRenderSettings>& settings)
+void VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_ptr<VoxelRenderSettings>& settings)
 {
     ImGui::Begin("Render Settings");
 
@@ -93,6 +94,16 @@ void VoxelSettingsGui::draw(const std::shared_ptr<VoxelRenderSettings>& settings
         ImGui::Checkbox("Enable Denoiser", &settings->denoiserSettings.enable);
 
         ImGui::SliderInt("Denoiser Iterations", &settings->denoiserSettings.iterations, 1, 10);
+
+        bool denoiserParamsChanged = false;
+        denoiserParamsChanged |= ImGui::SliderFloat("Phi Color", &settings->denoiserSettings.phiColor0, 0.0f, 100.0f, "%.6f");
+        denoiserParamsChanged |= ImGui::SliderFloat("Phi Normal", &settings->denoiserSettings.phiNormal0, 0.0f, 0.5f, "%.6f");
+        denoiserParamsChanged |= ImGui::SliderFloat("Phi Position", &settings->denoiserSettings.phiPos0, 0.0f, 0.5f, "%.6f");
+        denoiserParamsChanged |= ImGui::SliderFloat("Step Width", &settings->denoiserSettings.stepWidth, 0.0f, 5.0f, "%.6f");
+        if (denoiserParamsChanged)
+        {
+            renderer.denoiser->setParameters(settings->denoiserSettings.phiColor0, settings->denoiserSettings.phiNormal0, settings->denoiserSettings.phiPos0, settings->denoiserSettings.stepWidth);
+        }
     }
 
     ImGui::End();

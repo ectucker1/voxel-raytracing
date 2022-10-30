@@ -16,17 +16,13 @@
 #include "voxels/resource/voxel_scene.hpp"
 #include "engine/gui/imgui_renderer.hpp"
 #include "voxels/resource/voxel_render_settings.hpp"
-
-struct DenoiserParams
-{
-    float phiColor;
-    float phiNormal;
-    float phiPos;
-    float stepWidth;
-};
+#include "voxels/blur_denoiser.hpp"
 
 class VoxelSDFRenderer : public ARenderer
 {
+public:
+    std::unique_ptr<BlurDenoiser> denoiser;
+
 private:
     std::unique_ptr<CameraController> camera;
 
@@ -44,16 +40,7 @@ private:
     std::optional<FSR2Scaler> upscaler;
     std::optional<RenderImage> upscalerTarget;
 
-    ResourceRing<Buffer> _denoiseParamsBuffer;
-    std::optional<Buffer> _denoiseKernelBuffer;
-    std::optional<Buffer> _denoiseOffsetBuffer;
-    ResourceRing<DescriptorSet> _denoiseDescriptors;
-    ResourceRing<RenderImage> denoiseColorTarget;
-    ResourceRing<RenderPass> denoisePass;
-    ResourceRing<Framebuffer> denoiseFramebuffer;
-
     std::optional<VoxelSDFPipeline> geometryPipeline;
-    std::optional<DenoiserPipeline> denoisePipeline;
     std::optional<BlitPipeline> blitPipeline;
 
     std::optional<VoxelScene> _scene;
