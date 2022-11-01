@@ -44,8 +44,10 @@ static std::string resolutionName(glm::uvec2 resolution)
     return fmt::format("{}x{}", resolution.x, resolution.y);
 }
 
-void VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_ptr<VoxelRenderSettings>& settings)
+RecreationEventFlags VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_ptr<VoxelRenderSettings>& settings)
 {
+    RecreationEventFlags flags;
+
     ImGui::Begin("Render Settings");
 
     if (ImGui::CollapsingHeader("Resolution", ImGuiTreeNodeFlags_DefaultOpen))
@@ -57,8 +59,8 @@ void VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_
                 if (ImGui::Selectable(resolutionName(resolution).c_str(), settings->targetResolution == resolution))
                 {
                     settings->targetResolution = resolution;
-                    settings->targetResListeners.fireListeners();
-                    settings->renderResListeners.fireListeners();
+                    flags |= RecreationEventFlags::TARGET_RESIZE;
+                    flags |= RecreationEventFlags::RENDER_RESIZE;
                 }
 
                 if (settings->targetResolution == resolution)
@@ -69,7 +71,7 @@ void VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_
 
         if (ImGui::Checkbox("Enable FSR", &settings->fsrSetttings.enable))
         {
-            settings->renderResListeners.fireListeners();
+            flags |= RecreationEventFlags::RENDER_RESIZE;
         }
 
         if (ImGui::BeginCombo("FSR Quality", scalingName(settings->fsrSetttings.scaling).c_str()))
@@ -79,7 +81,7 @@ void VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_
                 if (ImGui::Selectable(scalingName(scaling).c_str(), settings->fsrSetttings.scaling == scaling))
                 {
                     settings->fsrSetttings.scaling = scaling;
-                    settings->renderResListeners.fireListeners();
+                    flags |= RecreationEventFlags::RENDER_RESIZE;
                 }
 
                 if (settings->fsrSetttings.scaling == scaling)
@@ -112,4 +114,6 @@ void VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_
     }
 
     ImGui::End();
+
+    return flags;
 }

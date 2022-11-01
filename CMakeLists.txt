@@ -26,6 +26,7 @@ conan_cmake_configure(
         stb/cci.20210910
         catch2/2.13.9
         imgui/1.88
+        bitflags/1.5.0
     GENERATORS
         cmake_find_package_multi
 )

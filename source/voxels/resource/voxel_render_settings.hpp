@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util/bidirectional_event_queue.hpp"
+#include "engine/recreation_queue.hpp"
 #include <glm/glm.hpp>
 
 enum class FsrScaling : uint32_t
@@ -35,10 +35,6 @@ struct AmbientOcclusionSettings
 
 class VoxelRenderSettings
 {
-public:
-    BidirectionalEventQueue targetResListeners;
-    BidirectionalEventQueue renderResListeners;
-
 public:
     glm::uvec2 targetResolution = { 3840, 2160 };
 

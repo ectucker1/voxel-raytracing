@@ -13,6 +13,7 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 void Engine::init()
 {
+    recreationQueue = RecreationQueue(shared_from_this());
     initGLFW();
     initVulkan();
     initSyncStructures();
@@ -134,7 +135,7 @@ void Engine::resize()
 
     device.waitIdle();
 
-    resizeListeners.fireListeners();
+    recreationQueue->fire(RecreationEventFlags::WINDOW_RESIZE);
 
     device.waitIdle();
 }
@@ -305,34 +306,37 @@ void Engine::initVulkan() {
 }
 
 void Engine::initSyncStructures() {
-    vk::FenceCreateInfo fenceInfo;
-    fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
-    renderFences = ResourceRing<vk::Fence>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
-        return device.createFence(fenceInfo);
-    });
-
-    vk::SemaphoreCreateInfo semaphoreInfo;
-    presentSemaphores = ResourceRing<vk::Semaphore>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
-        return device.createSemaphore(semaphoreInfo);
-    });
-    renderSemaphores = ResourceRing<vk::Semaphore>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
-        return device.createSemaphore(semaphoreInfo);
-    });
-
-    uint32_t syncGroup = deletionQueue.push_group([&]() {
-        renderFences.destroy([&](const vk::Fence& fence) {
-            device.destroy(fence);
+    recreationQueue->push(RecreationEventFlags::WINDOW_RESIZE, [&]() {
+        vk::FenceCreateInfo fenceInfo;
+        fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+        renderFences = ResourceRing<vk::Fence>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
+            return device.createFence(fenceInfo);
         });
-        presentSemaphores.destroy([&](const vk::Semaphore& semaphore) {
-            device.destroy(semaphore);
-        });
-        renderSemaphores.destroy([&](const vk::Semaphore& semaphore) {
-            device.destroy(semaphore);
-        });
-    });
 
-    resizeListeners.push([=]() { deletionQueue.destroy_group(syncGroup); },
-                         [=]() { initSyncStructures(); });
+        vk::SemaphoreCreateInfo semaphoreInfo;
+        presentSemaphores = ResourceRing<vk::Semaphore>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
+            return device.createSemaphore(semaphoreInfo);
+        });
+        renderSemaphores = ResourceRing<vk::Semaphore>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t) {
+            return device.createSemaphore(semaphoreInfo);
+        });
+
+        uint32_t syncGroup = deletionQueue.push_group([&]() {
+            renderFences.destroy([&](const vk::Fence& fence) {
+                device.destroy(fence);
+            });
+            presentSemaphores.destroy([&](const vk::Semaphore& semaphore) {
+                device.destroy(semaphore);
+            });
+            renderSemaphores.destroy([&](const vk::Semaphore& semaphore) {
+                device.destroy(semaphore);
+            });
+        });
+
+        return [=](const std::shared_ptr<Engine>& delEngine) {
+            delEngine->deletionQueue.destroy_group(syncGroup);
+        };
+    });
 }
 
 void Engine::upload_submit(const std::function<void(const vk::CommandBuffer& cmd)>& recordCommands)

@@ -10,7 +10,7 @@
 #include "engine/swapchain.hpp"
 #include "util/deletion_queue.hpp"
 #include "util/resource_ring.hpp"
-#include "util/bidirectional_event_queue.hpp"
+#include "recreation_queue.hpp"
 #include "engine/input_callbacks.hpp"
 
 struct GLFWwindow;
@@ -29,8 +29,6 @@ public:
 
     InputCallbacks inputs;
 
-    BidirectionalEventQueue resizeListeners;
-
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugMessenger;
 
@@ -44,6 +42,7 @@ public:
     vk::SurfaceKHR surface;
 
     DeletionQueue deletionQueue;
+    std::optional<RecreationQueue> recreationQueue;
 
     Swapchain swapchain;
 

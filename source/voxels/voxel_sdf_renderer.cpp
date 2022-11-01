@@ -35,85 +35,79 @@ VoxelSDFRenderer::VoxelSDFRenderer(const std::shared_ptr<Engine>& engine) : ARen
 
 void VoxelSDFRenderer::initRenderTargets()
 {
-    glm::uvec2  renderRes = settings->renderResolution();
+    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
+        glm::uvec2  renderRes = settings->renderResolution();
 
-    gColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
-                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
-    gDepthTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR32Sfloat,
-                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
-    gMotionTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR32G32Sfloat,
-                                vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
-    gMaskTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8Unorm,
-                              vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
-    gPositionTargets = ResourceRing<RenderImage>::fromArgs(2, engine, renderRes.x, renderRes.y, vk::Format::eR32G32B32A32Sfloat,
-                                                           vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
-    gNormalTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Snorm,
-                              vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+        gColorTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
+                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+        gDepthTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR32Sfloat,
+                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+        gMotionTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR32G32Sfloat,
+                                    vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+        gMaskTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8Unorm,
+                                  vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+        gPositionTargets = ResourceRing<RenderImage>::fromArgs(2, engine, renderRes.x, renderRes.y, vk::Format::eR32G32B32A32Sfloat,
+                                                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+        gNormalTarget = RenderImage(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Snorm,
+                                    vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
 
-    denoiser = std::make_unique<BlurDenoiser>(engine, settings, renderRes,
-                                              settings->denoiserSettings.phiColor0,
-                                              settings->denoiserSettings.phiNormal0,
-                                              settings->denoiserSettings.phiPos0,
-                                              settings->denoiserSettings.stepWidth);
+        denoiser = std::make_unique<BlurDenoiser>(engine, settings, renderRes,
+                                                  settings->denoiserSettings.phiColor0,
+                                                  settings->denoiserSettings.phiNormal0,
+                                                  settings->denoiserSettings.phiPos0,
+                                                  settings->denoiserSettings.stepWidth);
 
-    settings->renderResListeners.push([&]() {
-        engine->device.waitIdle();
-        gColorTarget->destroy();
-        gDepthTarget->destroy();
-        gMotionTarget->destroy();
-        gMaskTarget->destroy();
-        gPositionTargets.destroy([&](RenderImage image) {
-            image.destroy();
-        });
-        gNormalTarget->destroy();
-        denoiser->destroy();
-    },
-                                      [&]() {
-        initRenderTargets();
+        return [=](const std::shared_ptr<Engine>&) {
+            gColorTarget->destroy();
+            gDepthTarget->destroy();
+            gMotionTarget->destroy();
+            gMaskTarget->destroy();
+            gPositionTargets.destroy([=](const RenderImage& image) {
+                image.destroy();
+            });
+            gNormalTarget->destroy();
+            denoiser->destroy();
+        };
     });
 }
 
 void VoxelSDFRenderer::initRenderPasses()
 {
-    gPass = RenderPassBuilder(engine)
-        .color(0, gColorTarget->format, glm::vec4(0.0))
-        .color(1, gDepthTarget->format, glm::vec4(0.0))
-        .color(2, gMotionTarget->format, glm::vec4(0.0))
-        .color(3, gMaskTarget->format, glm::vec4(0.0))
-        .color(4, gPositionTargets[0].format, glm::vec4(0.0))
-        .color(5, gNormalTarget->format, glm::vec4(0.0))
-        .build();
+    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
+        gPass = RenderPassBuilder(engine)
+            .color(0, gColorTarget->format, glm::vec4(0.0))
+            .color(1, gDepthTarget->format, glm::vec4(0.0))
+            .color(2, gMotionTarget->format, glm::vec4(0.0))
+            .color(3, gMaskTarget->format, glm::vec4(0.0))
+            .color(4, gPositionTargets[0].format, glm::vec4(0.0))
+            .color(5, gNormalTarget->format, glm::vec4(0.0))
+            .build();
 
-    settings->renderResListeners.push([&]() {
-        engine->device.waitIdle();
-        gPass->destroy();
-    },
-                                      [&]() {
-        initRenderPasses();
+        return [=](const std::shared_ptr<Engine>&) {
+            gPass->destroy();
+        };
     });
 }
 
 void VoxelSDFRenderer::initFramebuffers()
 {
-    gFramebuffers = ResourceRing<Framebuffer>::fromFunc(2, [&](uint32_t n) {
-        return FramebufferBuilder(engine, gPass->renderPass, settings->renderResolution())
-            .color(gColorTarget->imageView)
-            .color(gDepthTarget->imageView)
-            .color(gMotionTarget->imageView)
-            .color(gMaskTarget->imageView)
-            .color(gPositionTargets[n].imageView)
-            .color(gNormalTarget->imageView)
-            .build();
-    });
-
-    settings->renderResListeners.push([&]() {
-        engine->device.waitIdle();
-        gFramebuffers.destroy([&](Framebuffer framebuffer) {
-            framebuffer.destroy();
+    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
+        gFramebuffers = ResourceRing<Framebuffer>::fromFunc(2, [&](uint32_t n) {
+            return FramebufferBuilder(engine, gPass->renderPass, settings->renderResolution())
+                .color(gColorTarget->imageView)
+                .color(gDepthTarget->imageView)
+                .color(gMotionTarget->imageView)
+                .color(gMaskTarget->imageView)
+                .color(gPositionTargets[n].imageView)
+                .color(gNormalTarget->imageView)
+                .build();
         });
-    },
-                                      [&]() {
-        initFramebuffers();
+
+        return [=](const std::shared_ptr<Engine>&) {
+            gFramebuffers.destroy([&](const Framebuffer& framebuffer) {
+                framebuffer.destroy();
+            });
+        };
     });
 }
 
@@ -126,30 +120,27 @@ void VoxelSDFRenderer::initRenderPipelines()
 
 void VoxelSDFRenderer::initRenderPipelineTargets()
 {
-    geometryPipeline->descriptorSet->initImage(0, _scene->sceneTexture->imageView, _scene->sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-    geometryPipeline->descriptorSet->initBuffer(1, _scene->paletteBuffer->buffer, _scene->paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
-    geometryPipeline->descriptorSet->initImage(2, _noiseTexture->imageView, _noiseTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-    geometryPipeline->descriptorSet->initImage(3, gPositionTargets[0].imageView, gPositionTargets[0].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
+        geometryPipeline->descriptorSet->initImage(0, _scene->sceneTexture->imageView, _scene->sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+        geometryPipeline->descriptorSet->initBuffer(1, _scene->paletteBuffer->buffer, _scene->paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
+        geometryPipeline->descriptorSet->initImage(2, _noiseTexture->imageView, _noiseTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+        geometryPipeline->descriptorSet->initImage(3, gPositionTargets[0].imageView, gPositionTargets[0].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
 
-    settings->renderResListeners.push([&]() {}, [&]() {
-        initRenderPipelineTargets();
+        return [=](const std::shared_ptr<Engine>&) {};
     });
 }
 
 void VoxelSDFRenderer::initUpscaler()
 {
-    upscaler = FSR2Scaler(engine, settings->targetResolution);
-    upscalerTarget = RenderImage(engine, settings->targetResolution.x, settings->targetResolution.y, vk::Format::eR8G8B8A8Unorm,
-                                 vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE | RecreationEventFlags::TARGET_RESIZE, [&]() {
+        upscaler = FSR2Scaler(engine, settings->targetResolution);
+        upscalerTarget = RenderImage(engine, settings->targetResolution.x, settings->targetResolution.y, vk::Format::eR8G8B8A8Unorm,
+                                     vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
 
-    settings->targetResListeners.push([&]() {
-        engine->device.waitIdle();
-        upscaler->destroy();
-        upscalerTarget->destroy();
-    },
-                                      [&]() {
-        engine->device.waitIdle();
-        initUpscaler();
+        return [=](const std::shared_ptr<Engine>&) {
+            upscaler->destroy();
+            upscalerTarget->destroy();
+        };
     });
 }
 
@@ -162,13 +153,12 @@ void VoxelSDFRenderer::initBlitPipelines()
 
 void VoxelSDFRenderer::initBlitPipelineTargets()
 {
-    blitPipeline->descriptorSet->initImage(0, upscalerTarget->imageView, upscalerTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
-    blitPipeline->descriptorSet->initBuffer(1, _blitOffsetsBuffer->buffer, _blitOffsetsBuffer->size, vk::DescriptorType::eUniformBuffer);
+    engine->recreationQueue->push(RecreationEventFlags::TARGET_RESIZE, [&]() {
+        blitPipeline->descriptorSet->initImage(0, upscalerTarget->imageView, upscalerTarget->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+        blitPipeline->descriptorSet->initBuffer(1, _blitOffsetsBuffer->buffer, _blitOffsetsBuffer->size, vk::DescriptorType::eUniformBuffer);
 
-    /*settings->targetResListeners.push([&]() {}, [&]() {
-        engine->device.waitIdle();
-        initBlitPipelineTargets();
-    });*/
+        return [=](const std::shared_ptr<Engine>&) {};
+    });
 }
 
 void VoxelSDFRenderer::update(float delta)
@@ -177,7 +167,8 @@ void VoxelSDFRenderer::update(float delta)
     camera->update(delta);
     upscaler->update(delta, settings->renderResolution());
     _imguiRenderer->beginFrame();
-    VoxelSettingsGui::draw(*this, settings);
+    RecreationEventFlags flags = VoxelSettingsGui::draw(*this, settings);
+    engine->recreationQueue->fire(flags);
 }
 
 void VoxelSDFRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame)
