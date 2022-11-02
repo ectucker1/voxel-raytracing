@@ -28,10 +28,10 @@ BlurDenoiser::BlurDenoiser(const std::shared_ptr<Engine>& engine, const std::sha
     });
 
     // Kernel offsets
-    glm::vec2 offsets[25];
-    for (int i = 0, y = -2; y <= 2; y++)
+    glm::vec2 offsets[DENOISER_KERNEL_SIZE];
+    for (int i = 0, y = -DENOISER_KERNEL_RADIUS; y <= DENOISER_KERNEL_RADIUS; y++)
     {
-        for (int x = -2; x <= 2; x++, i++)
+        for (int x = -DENOISER_KERNEL_RADIUS; x <= DENOISER_KERNEL_RADIUS; x++, i++)
         {
             offsets[i] = glm::vec2(x, y);
         }
@@ -43,10 +43,10 @@ BlurDenoiser::BlurDenoiser(const std::shared_ptr<Engine>& engine, const std::sha
     });
 
     // Kernel weights
-    float weights[25];
-    for (int i = 0, y = -2; y <= 2; y++)
+    float weights[DENOISER_KERNEL_SIZE];
+    for (int i = 0, y = -DENOISER_KERNEL_RADIUS; y <= DENOISER_KERNEL_RADIUS; y++)
     {
-        for (int x = -2; x <= 2; x++, i++)
+        for (int x = -DENOISER_KERNEL_RADIUS; x <= DENOISER_KERNEL_RADIUS; x++, i++)
         {
             weights[i] = glm::gauss(glm::vec2(x, y), glm::vec2(0, 0), glm::vec2(2.0, 2.0));
         }

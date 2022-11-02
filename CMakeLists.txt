@@ -18,7 +18,7 @@ include(conan)
 conan_cmake_configure(
     REQUIRES
         vulkan-headers/1.3.216.0
-        vk-bootstrap/0.5
+        vk-bootstrap/0.6
         vulkan-memory-allocator/3.0.1
         glfw/3.3.8
         glm/0.9.9.8
@@ -31,7 +31,7 @@ conan_cmake_configure(
         cmake_find_package_multi
 )
 conan_cmake_autodetect(settings)
-conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
+conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings} UPDATE)
 
 # Include prebuilt dependencies
 add_subdirectory(thirdparty/fsr2)

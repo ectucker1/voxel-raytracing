@@ -11,6 +11,8 @@
 #include "voxels/pipeline/denoiser_pipeline.hpp"
 
 #define MAX_DENOISER_PASSES 10
+#define DENOISER_KERNEL_RADIUS 1
+#define DENOISER_KERNEL_SIZE ((DENOISER_KERNEL_RADIUS + DENOISER_KERNEL_RADIUS + 1) * (DENOISER_KERNEL_RADIUS + DENOISER_KERNEL_RADIUS + 1))
 
 class VoxelRenderSettings;
 

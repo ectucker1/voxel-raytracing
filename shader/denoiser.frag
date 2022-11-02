@@ -15,10 +15,10 @@ layout (set = 0, binding = 3) uniform denoiserParams
     float stepWidth;
 } params;
 layout (set = 0, binding = 4) uniform Kernel {
-    float kernel[25];
+    float kernel[9];
 };
 layout (set = 0, binding = 5) uniform Offsets {
-    vec2 offset[25];
+    vec2 offset[9];
 };
 
 layout (push_constant) uniform constants
