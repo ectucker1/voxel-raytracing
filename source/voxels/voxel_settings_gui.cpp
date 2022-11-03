@@ -1,10 +1,10 @@
 #include "voxel_settings_gui.hpp"
 
-#include "voxels/resource/voxel_render_settings.hpp"
+#include "voxel_render_settings.hpp"
 #include <imgui.h>
 #include <cpp/imgui_stdlib.h>
 #include <fmt/format.h>
-#include "voxels/voxel_sdf_renderer.hpp"
+#include "voxels/voxel_renderer.hpp"
 
 const std::vector<FsrScaling> scalingOptions = {
     FsrScaling::NONE,
@@ -44,7 +44,7 @@ static std::string resolutionName(glm::uvec2 resolution)
     return fmt::format("{}x{}", resolution.x, resolution.y);
 }
 
-RecreationEventFlags VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, const std::shared_ptr<VoxelRenderSettings>& settings)
+RecreationEventFlags VoxelSettingsGui::draw(const std::shared_ptr<VoxelRenderSettings>& settings)
 {
     RecreationEventFlags flags;
 
@@ -104,7 +104,7 @@ RecreationEventFlags VoxelSettingsGui::draw(const VoxelSDFRenderer& renderer, co
         denoiserParamsChanged |= ImGui::SliderFloat("Step Width", &settings->denoiserSettings.stepWidth, 0.0f, 5.0f, "%.6f");
         if (denoiserParamsChanged)
         {
-            renderer.denoiser->setParameters(settings->denoiserSettings.phiColor0, settings->denoiserSettings.phiNormal0, settings->denoiserSettings.phiPos0, settings->denoiserSettings.stepWidth);
+            flags |= RecreationEventFlags::DENOISER_SETTINGS;
         }
     }
 

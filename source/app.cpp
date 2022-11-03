@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include "engine/engine.hpp"
-#include "voxels/voxel_sdf_renderer.hpp"
+#include "voxels/voxel_renderer.hpp"
 #include "demo/triangle_renderer.hpp"
 
 int run()
@@ -12,7 +12,7 @@ int run()
         std::shared_ptr<Engine> engine = std::make_shared<Engine>();
         engine->init();
 
-        std::shared_ptr<ARenderer> renderer = std::make_shared<VoxelSDFRenderer>(engine);
+        std::shared_ptr<ARenderer> renderer = std::make_shared<VoxelRenderer>(engine);
         engine->setRenderer(renderer);
 
         engine->run();

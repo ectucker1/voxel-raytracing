@@ -15,7 +15,7 @@ class Engine;
 class ARenderer : public AResource
 {
 protected:
-    std::optional<RenderPass> _windowRenderPass;
+    std::unique_ptr<RenderPass> _windowRenderPass;
     ResourceRing<Framebuffer> _windowFramebuffers;
 
 public:

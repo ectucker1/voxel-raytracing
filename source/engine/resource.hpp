@@ -28,6 +28,9 @@ public:
     // This relies on the engine's deletion queue for the deletor group.
     void destroy() const;
 
+    // Destroys this resource, and then acquires a new deletor group.
+    void resetDestroy();
+
     AResource(const AResource&) = default;
     AResource(AResource&&) = default;
     AResource& operator=(const AResource&) = default;

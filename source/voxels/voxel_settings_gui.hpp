@@ -4,9 +4,9 @@
 #include "engine/recreation_queue.hpp"
 
 class VoxelRenderSettings;
-class VoxelSDFRenderer;
+class VoxelRenderer;
 
 namespace VoxelSettingsGui
 {
-    extern RecreationEventFlags draw(const VoxelSDFRenderer& renderer, const std::shared_ptr<VoxelRenderSettings>& settings);
+    extern RecreationEventFlags draw(const std::shared_ptr<VoxelRenderSettings>& settings);
 }

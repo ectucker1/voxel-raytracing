@@ -19,6 +19,12 @@ public:
     // Actually creates the resource to be built.
     virtual T build() = 0;
 
+    // Creates a unique pointer to a resource.
+    std::unique_ptr<T> buildUnique()
+    {
+        return std::make_unique<T>(build());
+    }
+
     // Creates a shared pointer to a resource.
     std::shared_ptr<T> buildShared()
     {

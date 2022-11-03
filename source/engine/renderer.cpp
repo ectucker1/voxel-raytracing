@@ -12,7 +12,7 @@ void ARenderer::initWindowRenderPass()
 {
     _windowRenderPass = RenderPassBuilder(engine)
         .color(0, engine->swapchain.imageFormat, glm::vec4(0.0))
-        .build();
+        .buildUnique();
 }
 
 void ARenderer::initWindowFramebuffers()

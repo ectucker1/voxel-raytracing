@@ -5,12 +5,7 @@
 #include "engine/resource/shader_module.hpp"
 #include "engine/pipeline/descriptor_set.hpp"
 #include <glm/glm.hpp>
-
-struct BlitOffsets
-{
-    glm::uvec2 sourceSize;
-    glm::uvec2 targetSize;
-};
+#include "voxels/resource/parameters.hpp"
 
 class BlitPipeline : public APipeline
 {

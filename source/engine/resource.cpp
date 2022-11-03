@@ -19,3 +19,9 @@ void AResource::destroy() const
 {
     engine->deletionQueue.destroy_group(deletorGroup);
 }
+
+void AResource::resetDestroy()
+{
+    engine->deletionQueue.destroy_group(deletorGroup);
+    deletorGroup = engine->deletionQueue.next_group();
+}

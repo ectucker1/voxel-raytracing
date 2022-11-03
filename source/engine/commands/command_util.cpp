@@ -19,7 +19,7 @@ void cmdutil::imageMemoryBarrier(vk::CommandBuffer commandBuffer, vk::Image imag
     presentBarrier.image = image;
     commandBuffer.pipelineBarrier(srcStage, dstStage, vk::DependencyFlags(0),
                                   0, nullptr, 0, nullptr, 1, &presentBarrier);
-
+    presentBarrier.image = nullptr;
 }
 
 void cmdutil::blit(vk::CommandBuffer commandBuffer,

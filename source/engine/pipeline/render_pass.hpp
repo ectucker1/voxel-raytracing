@@ -30,7 +30,7 @@ public:
 };
 
 // Builder for render passes.
-class RenderPassBuilder : ResourceBuilder<RenderPass>
+class RenderPassBuilder : public ResourceBuilder<RenderPass>
 {
 private:
     // Color attachments for this render pass.

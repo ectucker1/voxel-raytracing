@@ -4,8 +4,7 @@
 
 RecreationQueue::RecreationQueue(const std::shared_ptr<Engine>& engine) : engine(engine) {}
 
-void RecreationQueue::push(RecreationEventFlags flags, const CreatorFunc& creator)
-{
+void RecreationQueue::push(RecreationEventFlags flags, const CreatorFunc& creator) {
     DeletorFunc deletor = creator();
 
     _creators.emplace_back(flags, creator);
