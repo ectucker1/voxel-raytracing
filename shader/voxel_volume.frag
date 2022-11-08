@@ -24,6 +24,10 @@ layout (push_constant) uniform constants
 struct Material
 {
     vec4 diffuse;
+    float metallic;
+    float pad1;
+    float pad2;
+    float pad3;
 };
 
 struct RayHit
@@ -157,7 +161,7 @@ void main()
     if (result.hit)
     {
         // Get diffuse color
-        vec3 diffuseColor = materials[result.material].diffuse.rgb;
+        vec4 diffuseColor = materials[result.material].diffuse;
 
         // Ambient color (to be calculated)
         vec4 ambientColor = vec4(0.0);
@@ -175,7 +179,24 @@ void main()
                 ambientColor += sampleFrac * skyColor(result.normal);
         }
 
-        outColor.rgb = diffuseColor * ambientColor.rgb;
+        float metallic = materials[result.material].metallic;
+        vec4 reflectColor = vec4(0);
+        if (metallic > 0)
+        {
+            vec3 dir = reflect(rayDir, result.normal);
+            RayHit reflectHit = traceRay(result.pos + result.normal * 0.01, dir, MAX_RAY_STEPS);
+            if (reflectHit.hit)
+            {
+                reflectColor = materials[reflectHit.material].diffuse;
+            }
+            else
+            {
+                reflectColor = skyColor(result.normal);
+            }
+        }
+
+        outColor.rgb = (reflectColor * metallic + diffuseColor * ambientColor * (1.0 - metallic)).rgb;
+
         outDepth = length(result.pos - pushConstants.camPos.xyz);
         outMask = 0.9;
         // TODO use inverse of camera matrix to reproject old position and calculate motion vectors

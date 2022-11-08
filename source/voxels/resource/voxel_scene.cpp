@@ -51,8 +51,11 @@ VoxelScene::VoxelScene(const std::shared_ptr<Engine>& engine, const std::string&
     for (size_t m = 0; m < paletteMaterials.size(); m++)
     {
         const ogt_vox_rgba color = voxScene->palette.color[m];
+        const float metallic = voxScene->materials.matl[m].metal;
+
         paletteMaterials[m].diffuse = glm::vec4(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
         paletteMaterials[m].diffuse = glm::pow(paletteMaterials[m].diffuse, glm::vec4(2.2f));
+        paletteMaterials[m].metallic = metallic;
     }
 
     ogt_vox_destroy_scene(voxScene);
