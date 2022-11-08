@@ -36,6 +36,7 @@ struct RayHit
     uint material;
     vec3 pos;
     vec3 normal;
+    vec3 dir;
 };
 
 layout (set = 0, binding = 0) uniform usampler3D scene;
@@ -49,6 +50,7 @@ layout (set = 0, binding = 4) uniform Parameters {
 };
 
 const uint MAX_RAY_STEPS = 512;
+const uint MAX_REFLECTIONS = 5;
 const uvec2 NOISE_SIZE = uvec2(512, 512);
 
 // Scene definition from volume
@@ -104,6 +106,7 @@ RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
     vec3 sideDist = (sign(dir) * (vec3(mapPos) - pos) + (sign(dir) * 0.5) + 0.5) * deltaDist;
 
     RayHit result;
+    result.dir = dir;
     result.hit = false;
     bvec3 mask;
     for (uint i = 0; i < maxSteps; i++)
@@ -137,6 +140,90 @@ RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
     return result;
 }
 
+// Take ambient occlusion samples and calculate a total ambient occlusion factor
+float calcAmbient(RayHit hit, uint depth)
+{
+    float ambientFactor = 0.0;
+
+    // For each ambient occulsion sample
+    float sampleFrac = 1.0f / aoSamples;
+    for (uint i = 0; i < aoSamples; i++)
+    {
+        // Generate a random direction around the normal
+        vec3 dir = hit.normal + randomDir(i + depth * aoSamples);
+        // Trace ray
+        RayHit hit = traceRay(hit.pos + dir * 0.01, dir, 64);
+        // Add ambient color if hit
+        if (!hit.hit)
+            ambientFactor += sampleFrac;
+    }
+
+    return ambientFactor;
+}
+
+// Calculate final material color using blending parameters
+vec3 color(Material mat, float ambient, vec3 reflection)
+{
+    return (reflection * mat.metallic * mat.diffuse.rgb + mat.diffuse.rgb * (1.0 - mat.metallic)) * ambient;
+}
+
+// Color a ray hit using the previously calculated reflection color
+vec3 colorHit(RayHit hit, vec3 reflection, uint depth)
+{
+    if (hit.hit)
+    {
+        float ambient = calcAmbient(hit, depth);
+        return color(materials[hit.material], ambient, reflection) * 1.0 / float(depth + 1);
+    }
+    else
+    {
+        return skyColor(hit.normal).rgb;
+    }
+}
+
+// Color the main ray, including the reflection stack
+vec3 colorMainRay(RayHit hit)
+{
+    // Get hit material
+    Material mat = materials[hit.material];
+
+    // Calculate a sum of reflection lighting
+    vec3 reflection = vec3(0.0);
+    if (mat.metallic > 0)
+    {
+        // Stack of reflection bounces
+        RayHit bounces[MAX_REFLECTIONS];
+
+        // Continue taking reflection bounces until we reach our maximum
+        RayHit lastHit = hit;
+        int lastIdx = -1;
+        for (int i = 0; i < MAX_REFLECTIONS; i++)
+        {
+            vec3 reflectDir = reflect(lastHit.dir, lastHit.normal);
+            RayHit reflectHit = traceRay(lastHit.pos + lastHit.normal * 0.01, reflectDir, MAX_RAY_STEPS);
+
+            // Store reflection bounce in stack
+            bounces[i] = reflectHit;
+            lastHit = reflectHit;
+
+            // Terminate early if material isn't metallic or we hit sky
+            if (!lastHit.hit || materials[lastHit.material].metallic <= 0)
+            {
+                lastIdx = i;
+                break;
+            }
+        }
+
+        // Sum backwards up the stack
+        for (int i = lastIdx; i >= 0; i--)
+        {
+            reflection += colorHit(bounces[i], reflection, i);
+        }
+    }
+
+    return colorHit(hit, reflection, 0);
+}
+
 void main()
 {
     // Last frame's position
@@ -160,43 +247,7 @@ void main()
 
     if (result.hit)
     {
-        // Get diffuse color
-        vec4 diffuseColor = materials[result.material].diffuse;
-
-        // Ambient color (to be calculated)
-        vec4 ambientColor = vec4(0.0);
-
-        // For each ambient occulsion sample
-        float sampleFrac = 1.0f / aoSamples;
-        for (uint i = 0; i < aoSamples; i++)
-        {
-            // Generate a random direction around the normal
-            vec3 dir = result.normal + randomDir(i);
-            // Trace ray
-            RayHit hit = traceRay(result.pos + dir * 0.01, dir, 64);
-            // Add ambient color if hit
-            if (!hit.hit)
-                ambientColor += sampleFrac * skyColor(result.normal);
-        }
-
-        float metallic = materials[result.material].metallic;
-        vec4 reflectColor = vec4(0);
-        if (metallic > 0)
-        {
-            vec3 dir = reflect(rayDir, result.normal);
-            RayHit reflectHit = traceRay(result.pos + result.normal * 0.01, dir, MAX_RAY_STEPS);
-            if (reflectHit.hit)
-            {
-                reflectColor = materials[reflectHit.material].diffuse;
-            }
-            else
-            {
-                reflectColor = skyColor(result.normal);
-            }
-        }
-
-        outColor.rgb = (reflectColor * metallic + diffuseColor * ambientColor * (1.0 - metallic)).rgb;
-
+        outColor.rgb = colorMainRay(result).rgb;
         outDepth = length(result.pos - pushConstants.camPos.xyz);
         outMask = 0.9;
         // TODO use inverse of camera matrix to reproject old position and calculate motion vectors
