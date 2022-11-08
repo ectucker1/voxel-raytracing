@@ -1,0 +1,133 @@
+@startuml
+'https://plantuml.com/class-diagram
+
+skinparam linetype ortho
+
+skinparam nodesep 30
+skinparam ranksep 25
+
+skinparam BackgroundColor #00000000
+
+class Framebuffer {
+    + framebuffer: vk::Framebuffer
+    + size: glm::uvec2
+
+    # Framebuffer(engine: const s_ptr<Engine>&)
+}
+
+class Buffer {
+    + buffer: vk::Buffer
+    + size: size_t
+
+    - allocation: VmaAllocation
+
+    + Buffer(engine: const s_ptr<Engine>&, size: size_t, usage: vk::BufferUsageFlags, memoryUsage: VmaMemoryUsage)
+    + copyData(data: void*, size: size_t) const: void
+}
+
+class RenderPass {
+    + renderPass: vk::RenderPass
+    + defaultClears: vector<vk::ClearValue>
+    # RenderPass(engine: const s_ptr<Engine>&)
+    + recordBegin(cmd: const vk::CommandBuffer&, framebuffer: const Framebuffer&) const: void
+}
+
+class Texture2D {
+    + width: uint32_t
+    + height: uint32_t
+    + channels: uint32_t
+    + image: vk::Image
+    + imageView: vk::ImageView
+    + sampler: vk::Sampler
+    - allocation: VmaAllocation
+
+    + Texture2D(engine: const s_ptr<Engine>&, filepath: const string&, desiredChannels: int, imageFormat: vk::Format)
+}
+
+class DescriptorSet {
+    + layout: vk::DescriptorSetLayout
+    + sets: ResourceRing<vk::DescriptorSet>
+
+    # DescriptorSet(engine: const s_ptr<Engine>&)
+    + getSet(frame: uint32_t) const: const vk::DescriptorSet*
+    + writeBuffer(binding: uint32_t, frame: uint32_t, buffer: vk::Buffer,size: vk::DeviceSize, type: vk::DescriptorType) const: void
+    + writeImage(binding: uint32_t, frame: uint32_t, imageView: vk::ImageView, sampler: vk::Sampler, layout: vk::ImageLayout) const: void
+    + initBuffer(binding: uint32_t, buffer: vk::Buffer, size: vk::DeviceSize, type: vk::DescriptorType) const: void
+    + initImage(binding: uint32_t, imageView: vk::ImageView, sampler: vk::Sampler, layout: vk::ImageLayout) const: void
+}
+
+class ShaderModule {
+    - _stage: vk::ShaderStageFlagBits
+    - _shaderModule: vk::ShaderModule
+
+    + ShaderModule(engine: const s_ptr<Engine>&, filename: const string&, stage: vk::ShaderStageFlagBits)
+    + buildStageCreateInfo() const: vk::PipelineShaderStageCreateInfo
+}
+
+class RenderImage {
+    + width: uint32_t
+    + height: uint32_t
+    + image: vk::Image
+    + format: vk::Format
+    + imageView: vk::ImageView
+    + sampler: vk::Sampler
+    - allocation: VmaAllocation
+
+    + RenderImage(engine: const s_ptr<Engine>&, width: uint32_t, height: uint32_t, format: vk::Format, usage: vk::ImageUsageFlags, aspect: vk::ImageAspectFlags)
+}
+
+abstract class AResource {
+    - deletorGroup: uint32_t
+    # engine: s_ptr<Engine>
+
+    + AResource(engine: const s_ptr<Engine>&)
+    # pushDeletor(deletor: function<void(const s_ptr<Engine>& engine)>): void
+    + destroy() const: void
+    + resetDestroy(): void
+}
+
+abstract class APipeline {
+    + pipeline: vk::Pipeline
+    + layout: vk::PipelineLayout
+    # pipelineDeletionQueue: DeletionQueue
+    # pass: vk::RenderPass
+    # _dynamicStates: vector<vk::DynamicState>
+    # _colorBlendAttachment: vk::PipelineColorBlendAttachmentState
+
+    # APipeline(engine: const s_ptr<Engine>&, pass: const vk::RenderPass&)
+    + buildAll(): void
+    # virtual buildShaderStages(): vector<vk::PipelineShaderStageCreateInfo>
+    # virtual buildVertexInputInfo(): vk::PipelineVertexInputStateCreateInfo
+    # virtual buildInputAssembly(): vk::PipelineInputAssemblyStateCreateInfo
+    # virtual buildDynamicState(): vk::PipelineDynamicStateCreateInfo
+    # virtual buildViewport(): vk::PipelineViewportStateCreateInfo
+    # virtual buildRasterizer(): vk::PipelineRasterizationStateCreateInfo
+    # virtual buildColorBlendAttachment(): vk::PipelineColorBlendStateCreateInfo
+    # virtual buildDepthStencil(): vk::PipelineDepthStencilStateCreateInfo
+    # virtual buildMultisampling(): vk::PipelineMultisampleStateCreateInfo
+    # virtual buildPipelineLayout(): vk::PipelineLayoutCreateInfo
+}
+
+class Texture3D {
+    + width: size_t
+    + height: size_t
+    + depth: size_t
+    + image: vk::Image
+    + imageView: vk::ImageView
+    + sampler: vk::Sampler
+    - allocation: VmaAllocation
+
+    + Texture3D(engine: const s_ptr<Engine>&, imageData: void*, width: size_t, height: size_t, depth: size_t, pixelSize: size_t, imageFormat: vk::Format )
+}
+
+Texture3D .u..|> AResource
+Texture2D .d..|> AResource
+ShaderModule .l.|> AResource
+APipeline .r.|> AResource
+RenderImage .u.|> AResource
+Buffer .d..|> AResource
+RenderPass ..|> AResource
+Framebuffer .d.|> AResource
+DescriptorSet .u..|> AResource
+
+@enduml

@@ -6,13 +6,15 @@ skinparam linetype polyline
 skinparam nodesep 20
 skinparam ranksep 20
 
+skinparam BackgroundColor #00000000
+
 together {
     (Scene 3D Texture) as SceneTex
     (Noise Texture) as NoiseTex
     (Geometry Params) as GeomParams
 }
 
-[Geoemetry Pass] as GeomPass
+[Geometry Pass] as GeomPass
 
 together {
     (Color) as ColorOut
