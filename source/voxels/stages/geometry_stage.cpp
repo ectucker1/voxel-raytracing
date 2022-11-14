@@ -11,7 +11,7 @@
 #include "engine/resource/texture_2d.hpp"
 #include "engine/commands/command_util.hpp"
 
-GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::shared_ptr<VoxelRenderSettings>& settings, const std::shared_ptr<VoxelScene>& scene, const std::shared_ptr<Texture2D>& noise) : AVoxelRenderStage(engine, settings)
+GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::shared_ptr<VoxelRenderSettings>& settings, const std::shared_ptr<VoxelScene>& scene, const std::shared_ptr<Texture2D>& noise) : AVoxelRenderStage(engine, settings), _scene(scene)
 {
     _parametersBuffer = std::make_unique<Buffer>(engine, sizeof(VolumeParameters), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     _parametersBuffer->copyData(&_parameters, sizeof(VolumeParameters));
@@ -84,6 +84,7 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
         _pipeline->descriptorSet->initImage(0, scene->sceneTexture->imageView, scene->sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
         _pipeline->descriptorSet->initBuffer(1, scene->paletteBuffer->buffer, scene->paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
         _pipeline->descriptorSet->initImage(2, noise->imageView, noise->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
+        _pipeline->descriptorSet->initBuffer(5, scene->lightBuffer->buffer, scene->lightBuffer->size, vk::DescriptorType::eUniformBuffer);
 
         return [=](const std::shared_ptr<Engine>&) {};
     });
@@ -120,8 +121,14 @@ GeometryBuffer GeometryStage::record(const vk::CommandBuffer& cmd, uint32_t flig
     // Set parameters buffer
     _parameters.aoSamples = _settings->occlusionSettings.numSamples;
     _parametersBuffer->copyData(&_parameters, sizeof(VolumeParameters));
+    Light light = {};
+    light.intensity = _settings->lightSettings.intensity;
+    light.direction = _settings->lightSettings.direction;
+    light.color = _settings->lightSettings.color;
+    _scene->lightBuffer->copyData(&light, sizeof(Light));
     _pipeline->descriptorSet->writeImage(3, flightFrame, _positionTargets[altFrame].imageView, _positionTargets[altFrame].sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
     _pipeline->descriptorSet->writeBuffer(4, flightFrame, _parametersBuffer->buffer, sizeof(VolumeParameters), vk::DescriptorType::eUniformBuffer);
+    _pipeline->descriptorSet->writeBuffer(5, flightFrame, _scene->lightBuffer->buffer, _scene->lightBuffer->size, vk::DescriptorType::eUniformBuffer);
     // Bind descriptor sets
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline->layout,
         0, 1,

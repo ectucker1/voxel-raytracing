@@ -33,6 +33,13 @@ struct AmbientOcclusionSettings
     int numSamples = 4;
 };
 
+struct LightSettings
+{
+    glm::vec3 direction = glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f));
+    glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    float intensity = 1.0f;
+};
+
 class VoxelRenderSettings
 {
 public:
@@ -41,6 +48,7 @@ public:
     FsrSettings fsrSetttings = {};
     DenoiserSettings denoiserSettings = {};
     AmbientOcclusionSettings occlusionSettings = {};
+    LightSettings lightSettings = {};
 
 public:
     glm::uvec2 renderResolution() const;

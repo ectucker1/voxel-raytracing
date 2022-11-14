@@ -113,6 +113,14 @@ RecreationEventFlags VoxelSettingsGui::draw(const std::shared_ptr<VoxelRenderSet
         ImGui::SliderInt("Occlusion Samples", &settings->occlusionSettings.numSamples, 1, 16);
     }
 
+    if (ImGui::CollapsingHeader("Directional Light"), ImGuiTreeNodeFlags_DefaultOpen)
+    {
+        ImGui::SliderFloat3("Light Direction", reinterpret_cast<float*>(&settings->lightSettings.direction), -1.0f, 1.0f);
+        ImGui::ColorEdit4("Light Color", reinterpret_cast<float*>(&settings->lightSettings.color), ImGuiColorEditFlags_HDR);
+        ImGui::SliderFloat("Light Intensity", &settings->lightSettings.intensity, 0.0f, 5.0f);
+        settings->lightSettings.direction = glm::normalize(settings->lightSettings.direction);
+    }
+
     ImGui::End();
 
     return flags;

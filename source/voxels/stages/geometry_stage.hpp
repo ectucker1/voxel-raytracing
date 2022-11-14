@@ -29,6 +29,8 @@ struct GeometryBuffer
 class GeometryStage : public AVoxelRenderStage
 {
 private:
+    std::shared_ptr<VoxelScene> _scene;
+
     VolumeParameters _parameters = {};
     std::unique_ptr<Buffer> _parametersBuffer;
 

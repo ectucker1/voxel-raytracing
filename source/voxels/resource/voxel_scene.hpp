@@ -5,6 +5,13 @@
 #include "engine/resource/texture_3d.hpp"
 #include "engine/resource/buffer.hpp"
 
+struct Light
+{
+    glm::vec3 direction = glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f));
+    float intensity = 1.0f;
+    glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+};
+
 // A complete voxel scene, including the 3D scene texture and palette
 class VoxelScene : AResource
 {
@@ -14,6 +21,8 @@ public:
     std::optional<Texture3D> sceneTexture;
     // The buffer holding the material palette
     std::optional<Buffer> paletteBuffer;
+    // The buffer holding the light
+    std::optional<Buffer> lightBuffer;
 
 public:
     // Loads a new voxel scene from the given file

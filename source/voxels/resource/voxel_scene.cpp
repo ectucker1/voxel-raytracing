@@ -64,4 +64,9 @@ VoxelScene::VoxelScene(const std::shared_ptr<Engine>& engine, const std::string&
     sceneTexture = Texture3D(engine, sceneData.data(), width, height, depth, 1, vk::Format::eR8Uint);
     paletteBuffer = Buffer(engine, paletteMaterials.size() * sizeof(Material), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     paletteBuffer->copyData(paletteMaterials.data(), paletteMaterials.size() * sizeof(Material));
+
+    // Copy light to buffer
+    Light light = {};
+    lightBuffer = Buffer(engine, sizeof(Light), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    lightBuffer->copyData(&light, sizeof(Light));
 }

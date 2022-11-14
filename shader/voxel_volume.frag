@@ -48,6 +48,11 @@ layout (set = 0, binding = 3) uniform sampler2D oldPos;
 layout (set = 0, binding = 4) uniform Parameters {
     uint aoSamples;
 };
+layout (set = 0, binding = 5) uniform Light {
+    vec3 lightDir;
+    float lightIntensity;
+    vec4 lightColor;
+};
 
 const uint MAX_RAY_STEPS = 512;
 const uint MAX_REFLECTIONS = 5;
@@ -141,9 +146,9 @@ RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
 }
 
 // Take ambient occlusion samples and calculate a total ambient occlusion factor
-float calcAmbient(RayHit hit, uint depth)
+vec3 calcAmbient(RayHit hit, uint depth)
 {
-    float ambientFactor = 0.0;
+    vec3 ambient = vec3(0.0);
 
     // For each ambient occulsion sample
     float sampleFrac = 1.0f / aoSamples;
@@ -155,25 +160,43 @@ float calcAmbient(RayHit hit, uint depth)
         RayHit hit = traceRay(hit.pos + dir * 0.01, dir, 64);
         // Add ambient color if hit
         if (!hit.hit)
-            ambientFactor += sampleFrac;
+            ambient += sampleFrac * skyColor(dir).rgb;
     }
 
-    return ambientFactor;
+    return ambient;
+}
+
+// Cast a ray and determine if the given hit is in the shadows
+bool isShadowed(RayHit hit)
+{
+    RayHit shadowHit = traceRay(hit.pos + hit.normal * 0.01, lightDir, MAX_RAY_STEPS);
+    return shadowHit.hit;
 }
 
 // Calculate final material color using blending parameters
-vec3 color(Material mat, float ambient, vec3 reflection)
+vec3 color(vec3 normal, Material mat, vec3 ambient, vec3 reflection, bool shadowed)
 {
-    return (reflection * mat.metallic * mat.diffuse.rgb + mat.diffuse.rgb * (1.0 - mat.metallic)) * ambient;
+    vec3 diffuse = vec3(0.0);
+    if (!shadowed)
+    {
+        float diff = max(dot(normal, lightDir), 0.0);
+        diffuse = diff * lightColor.rgb * lightIntensity;
+    }
+
+    vec3 specular = reflection * mat.metallic;
+
+    return (diffuse + specular + ambient) * mat.diffuse.rgb;
 }
+
 
 // Color a ray hit using the previously calculated reflection color
 vec3 colorHit(RayHit hit, vec3 reflection, uint depth)
 {
     if (hit.hit)
     {
-        float ambient = calcAmbient(hit, depth);
-        return color(materials[hit.material], ambient, reflection) * 1.0 / float(depth + 1);
+        vec3 ambient = calcAmbient(hit, depth);
+        bool shadowed = isShadowed(hit);
+        return color(hit.normal, materials[hit.material], ambient, reflection, shadowed) * 1.0 / float(depth + 1);
     }
     else
     {
