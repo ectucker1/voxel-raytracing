@@ -85,6 +85,7 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
         _pipeline->descriptorSet->initBuffer(1, scene->paletteBuffer->buffer, scene->paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
         _pipeline->descriptorSet->initImage(2, noise->imageView, noise->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
         _pipeline->descriptorSet->initBuffer(5, scene->lightBuffer->buffer, scene->lightBuffer->size, vk::DescriptorType::eUniformBuffer);
+        _pipeline->descriptorSet->initImage(6, scene->skyboxTexture->imageView, scene->skyboxTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
 
         return [=](const std::shared_ptr<Engine>&) {};
     });

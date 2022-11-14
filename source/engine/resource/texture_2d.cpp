@@ -3,9 +3,21 @@
 #include "engine/engine.hpp"
 #include "engine/resource/buffer.hpp"
 #define STB_IMAGE_IMPLEMENTATION
-#define STB_ONLY_PNG
 #include <stb_image.h>
 #include <fmt/format.h>
+
+static size_t formatSize(vk::Format format)
+{
+    switch (format)
+    {
+        case vk::Format::eR32G32B32A32Sfloat:
+            return 16;
+        case vk::Format::eR8G8B8A8Unorm:
+            return 4;
+    }
+    return 4;
+}
+
 
 Texture2D::Texture2D(const std::shared_ptr<Engine>& engine,
                      const std::string& filepath,
@@ -15,7 +27,15 @@ Texture2D::Texture2D(const std::shared_ptr<Engine>& engine,
     int iWidth;
     int iHeight;
     int iChannels;
-    stbi_uc* pixels = stbi_load(filepath.c_str(), &iWidth, &iHeight, &iChannels, desiredChannels);
+    void* pixels;
+    if (stbi_is_hdr(filepath.c_str()))
+    {
+        pixels = stbi_loadf(filepath.c_str(), &iWidth, &iHeight, &iChannels, desiredChannels);
+    }
+    else
+    {
+        pixels = stbi_load(filepath.c_str(), &iWidth, &iHeight, &iChannels, desiredChannels);
+    }
 
     if (!pixels)
     {
@@ -26,7 +46,7 @@ Texture2D::Texture2D(const std::shared_ptr<Engine>& engine,
     height = static_cast<uint32_t>(iHeight);
     channels = static_cast<uint32_t>(iChannels);
 
-    vk::DeviceSize imageSize = width * height * channels;
+    vk::DeviceSize imageSize = width * height * formatSize(imageFormat);
 
     // Create CPU-side buffer to hold data
     Buffer stagingBuffer(engine, imageSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);

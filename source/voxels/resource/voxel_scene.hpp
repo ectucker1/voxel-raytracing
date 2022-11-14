@@ -5,6 +5,8 @@
 #include "engine/resource/texture_3d.hpp"
 #include "engine/resource/buffer.hpp"
 
+class Texture2D;
+
 struct Light
 {
     glm::vec3 direction = glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f));
@@ -19,6 +21,8 @@ public:
     uint32_t width, height, depth;
     // The 3D scene texture
     std::optional<Texture3D> sceneTexture;
+    // The skybox texture
+    std::unique_ptr<Texture2D> skyboxTexture;
     // The buffer holding the material palette
     std::optional<Buffer> paletteBuffer;
     // The buffer holding the light
@@ -26,5 +30,5 @@ public:
 
 public:
     // Loads a new voxel scene from the given file
-    VoxelScene(const std::shared_ptr<Engine>& engine, const std::string& filename);
+    VoxelScene(const std::shared_ptr<Engine>& engine, const std::string& filename, const std::string& skyboxFilename);
 };

@@ -3,9 +3,10 @@
 #define OGT_VOX_IMPLEMENTATION
 #include "ogt_vox.h"
 #include "material.hpp"
+#include "engine/resource/texture_2d.hpp"
 #include <fstream>
 
-VoxelScene::VoxelScene(const std::shared_ptr<Engine>& engine, const std::string& filename) : AResource(engine)
+VoxelScene::VoxelScene(const std::shared_ptr<Engine>& engine, const std::string& filename, const std::string& skyboxFilename) : AResource(engine)
 {
     // Read in .vox file
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
@@ -69,4 +70,7 @@ VoxelScene::VoxelScene(const std::shared_ptr<Engine>& engine, const std::string&
     Light light = {};
     lightBuffer = Buffer(engine, sizeof(Light), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
     lightBuffer->copyData(&light, sizeof(Light));
+
+    // Load skybox texture
+    skyboxTexture = std::make_unique<Texture2D>(engine, skyboxFilename, 4, vk::Format::eR32G32B32A32Sfloat);
 }

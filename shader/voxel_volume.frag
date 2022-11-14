@@ -53,6 +53,7 @@ layout (set = 0, binding = 5) uniform Light {
     float lightIntensity;
     vec4 lightColor;
 };
+layout (set = 0, binding = 6) uniform sampler2D skybox;
 
 const uint MAX_RAY_STEPS = 512;
 const uint MAX_REFLECTIONS = 5;
@@ -85,11 +86,14 @@ vec3 randomDir(uint num)
     return normalize(fragmentNoiseSeq(num) * 2.0 - vec3(1.0));
 }
 
-// Sky color interpolated from white to light blue
+// Sky color sampled from skybox
+const vec2 invAtan = vec2(0.1591, 0.3183);
 vec4 skyColor(vec3 rayDir)
 {
-    float t = 0.5 * (rayDir.y + 1.0);
-    return (1.0 - t) * vec4(1.0, 1.0, 1.0, 1.0) + t * vec4(0.5, 0.7, 1.0, 1.0);
+    vec2 uv = vec2(atan(rayDir.z, rayDir.x), asin(-rayDir.y));
+    uv *= invAtan;
+    uv += 0.5;
+    return texture(skybox, uv);
 }
 
 RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
@@ -148,7 +152,7 @@ RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
 // Take ambient occlusion samples and calculate a total ambient occlusion factor
 vec3 calcAmbient(RayHit hit, uint depth)
 {
-    vec3 ambient = vec3(0.0);
+    float ambient = 0.0;
 
     // For each ambient occulsion sample
     float sampleFrac = 1.0f / aoSamples;
@@ -160,10 +164,10 @@ vec3 calcAmbient(RayHit hit, uint depth)
         RayHit hit = traceRay(hit.pos + dir * 0.01, dir, 64);
         // Add ambient color if hit
         if (!hit.hit)
-            ambient += sampleFrac * skyColor(dir).rgb;
+            ambient += sampleFrac;
     }
 
-    return ambient;
+    return ambient * skyColor(hit.normal).rgb;
 }
 
 // Cast a ray and determine if the given hit is in the shadows
@@ -200,7 +204,7 @@ vec3 colorHit(RayHit hit, vec3 reflection, uint depth)
     }
     else
     {
-        return skyColor(hit.normal).rgb;
+        return skyColor(hit.dir).rgb;
     }
 }
 
