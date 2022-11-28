@@ -11,6 +11,7 @@
 #include "engine/commands/command_util.hpp"
 #include "voxels/resource/screen_quad_push.hpp"
 #include "engine/resource/render_image.hpp"
+#include "voxels/voxel_performance_gui.hpp"
 
 VoxelRenderer::VoxelRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(engine)
 {
@@ -40,6 +41,7 @@ void VoxelRenderer::update(float delta)
 
     _imguiRenderer->beginFrame();
     RecreationEventFlags flags = VoxelSettingsGui::draw(_settings);
+    VoxelPerformanceGui::draw(delta);
     engine->recreationQueue->fire(flags);
 }
 
