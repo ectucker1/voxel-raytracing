@@ -460,3 +460,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Large models
+resource/test_terrain.vox
