@@ -13,24 +13,24 @@
 
 GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::shared_ptr<VoxelRenderSettings>& settings, const std::shared_ptr<VoxelScene>& scene, const std::shared_ptr<Texture2D>& noise) : AVoxelRenderStage(engine, settings), _scene(scene)
 {
-    _parametersBuffer = std::make_unique<Buffer>(engine, sizeof(VolumeParameters), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _parametersBuffer = std::make_unique<Buffer>(engine, sizeof(VolumeParameters), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU, "G-Pass Parameters Buffer");
     _parametersBuffer->copyData(&_parameters, sizeof(VolumeParameters));
 
     engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
         glm::uvec2 renderRes = settings->renderResolution();
 
         _colorTarget = std::make_unique<RenderImage>(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
-                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Color Target");
         _depthTarget = std::make_unique<RenderImage>(engine, renderRes.x, renderRes.y, vk::Format::eR32Sfloat,
-                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Depth Target");
         _motionTarget = std::make_unique<RenderImage>(engine, renderRes.x, renderRes.y, vk::Format::eR32G32Sfloat,
-                                    vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+                                    vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Motion Target");
         _maskTarget = std::make_unique<RenderImage>(engine, renderRes.x, renderRes.y, vk::Format::eR8Unorm,
-                                  vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+                                  vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Mask Target");
         _positionTargets = ResourceRing<RenderImage>::fromArgs(2, engine, renderRes.x, renderRes.y, vk::Format::eR32G32B32A32Sfloat,
-                                                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+                                                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Position Target");
         _normalTarget = std::make_unique<RenderImage>(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Snorm,
-                                    vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+                                    vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Normal Target");
 
         return [=](const std::shared_ptr<Engine>&) {
             _colorTarget->destroy();
@@ -52,7 +52,7 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
             .color(3, _maskTarget->format, glm::vec4(0.0))
             .color(4, _positionTargets[0].format, glm::vec4(0.0))
             .color(5, _normalTarget->format, glm::vec4(0.0))
-            .buildUnique();
+            .buildUnique("Geometry Render Pass");
 
         return [=](const std::shared_ptr<Engine>&) {
             _renderPass->destroy();
@@ -68,7 +68,7 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
                 .color(_maskTarget->imageView)
                 .color(_positionTargets[n].imageView)
                 .color(_normalTarget->imageView)
-                .build();
+                .build("Geometry Framebuffer");
         });
 
         return [=](const std::shared_ptr<Engine>&) {

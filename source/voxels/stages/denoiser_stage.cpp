@@ -25,7 +25,7 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
     _iterationParamsBuffers.reserve(MAX_DENOISER_PASSES);
     for (uint32_t i = 0; i < MAX_DENOISER_PASSES; i++)
     {
-        _iterationParamsBuffers.push_back(Buffer(engine, sizeof(DenoiserParams), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU));
+        _iterationParamsBuffers.push_back(Buffer(engine, sizeof(DenoiserParams), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU, fmt::format("Denoiser Params Buffer {}", i)));
     }
     updateParameters();
     pushDeletor([&](const std::shared_ptr<Engine>&) {
@@ -42,7 +42,7 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
             offsets[i] = glm::vec2(x, y);
         }
     }
-    _offsetBuffer = std::make_unique<Buffer>(engine, sizeof(offsets), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _offsetBuffer = std::make_unique<Buffer>(engine, sizeof(offsets), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU, "Denoiser Offsets Buffer");
     _offsetBuffer->copyData(offsets, _offsetBuffer->size);
     pushDeletor([&](const std::shared_ptr<Engine>&) {
         _offsetBuffer->destroy();
@@ -57,7 +57,7 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
             weights[i] = glm::gauss(glm::vec2(x, y), glm::vec2(0, 0), glm::vec2(2.0, 2.0));
         }
     }
-    _kernelBuffer = std::make_unique<Buffer>(engine, sizeof(weights), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _kernelBuffer = std::make_unique<Buffer>(engine, sizeof(weights), vk::BufferUsageFlagBits::eUniformBuffer, VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU, "Denoiser Kernel Buffer");
     _kernelBuffer->copyData(weights, _kernelBuffer->size);
     pushDeletor([&](const std::shared_ptr<Engine>&) {
         _kernelBuffer->destroy();
@@ -74,7 +74,7 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
             .buffer(3, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
             .buffer(4, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
             .buffer(5, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
-            .build());
+            .build("Denoiser Iteration Descriptor Set"));
     }
     for (uint32_t i = 0; i < MAX_DENOISER_PASSES; i++)
     {
@@ -89,7 +89,7 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
 
     engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
         _colorTargets = ResourceRing<RenderImage>::fromArgs(2, engine, _settings->renderResolution().x, _settings->renderResolution().y, vk::Format::eR8G8B8A8Unorm,
-                                                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+                                                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Denoiser Target");
 
         return [=](const std::shared_ptr<Engine>&) {
             _colorTargets.destroy([&](const RenderImage& image) {
@@ -102,7 +102,7 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
         _renderPasses = ResourceRing<RenderPass>::fromFunc(2, [&](uint32_t i) {
             return RenderPassBuilder(engine)
                 .color(0, _colorTargets[i].format, glm::vec4(0.0f))
-                .build();
+                .build(fmt::format("Denoiser Iteration Render Pass {}", i));
         });
 
         return [=](const std::shared_ptr<Engine>&) {
@@ -116,7 +116,7 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
         _framebuffers = ResourceRing<Framebuffer>::fromFunc(2, [&](uint32_t n) {
             return FramebufferBuilder(engine, _renderPasses[n].renderPass, _settings->renderResolution())
                 .color(_colorTargets[n].imageView)
-                .build();
+                .build("Denoiser Iteration Framebuffer");
         });
 
         return [=](const std::shared_ptr<Engine>&) {

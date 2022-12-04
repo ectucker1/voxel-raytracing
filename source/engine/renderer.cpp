@@ -12,7 +12,7 @@ void ARenderer::initWindowRenderPass()
 {
     _windowRenderPass = RenderPassBuilder(engine)
         .color(0, engine->swapchain.imageFormat, glm::vec4(0.0))
-        .buildUnique();
+        .buildUnique("Window Render Pass");
 }
 
 void ARenderer::initWindowFramebuffers()
@@ -22,7 +22,7 @@ void ARenderer::initWindowFramebuffers()
         _windowFramebuffers = ResourceRing<Framebuffer>::fromFunc(imageCount, [&](uint32_t i) {
             return FramebufferBuilder(engine, _windowRenderPass->renderPass, engine->windowSize)
                     .color(engine->swapchain.imageViews[i])
-                    .build();
+                    .build("Window Framebuffer");
         });
 
         uint32_t framebufferGroup = engine->deletionQueue.push_group([&]() {

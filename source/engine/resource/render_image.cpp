@@ -1,9 +1,10 @@
 #include "render_image.hpp"
 
 #include "engine/engine.hpp"
+#include "engine/debug_marker.hpp"
 
 RenderImage::RenderImage(const std::shared_ptr<Engine>& engine, uint32_t width, uint32_t height,
-                         vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspect)
+                         vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspect, const std::string& name)
                          : AResource(engine), width(width), height(height), format(format)
 {
     vk::Extent3D imageExtent;
@@ -33,6 +34,7 @@ RenderImage::RenderImage(const std::shared_ptr<Engine>& engine, uint32_t width, 
     vk::resultCheck(vk::Result(res), "Error creating render target image");
     image = vk::Image(imageC);
     VmaAllocation localAllocation = allocation;
+    DebugMarker::setObjectName(engine->device, (VkImage)image, fmt::format("{} Image", name));
     pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
         vmaDestroyImage(delEngine->allocator, imageC, localAllocation);
     });
@@ -49,6 +51,7 @@ RenderImage::RenderImage(const std::shared_ptr<Engine>& engine, uint32_t width, 
     imageViewInfo.subresourceRange.layerCount = 1;
     vk::ImageView createdImageView = engine->device.createImageView(imageViewInfo);
     imageView = createdImageView;
+    DebugMarker::setObjectName(engine->device, (VkImageView)imageView, fmt::format("{} Image View", name));
     pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
         delEngine->device.destroy(createdImageView);
     });
@@ -62,6 +65,7 @@ RenderImage::RenderImage(const std::shared_ptr<Engine>& engine, uint32_t width, 
     samplerInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
     vk::Sampler createdSampler = engine->device.createSampler(samplerInfo);
     sampler = createdSampler;
+    DebugMarker::setObjectName(engine->device, (VkSampler)sampler, fmt::format("{} Sampler", name));
     pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
         delEngine->device.destroy(createdSampler);
     });

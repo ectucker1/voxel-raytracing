@@ -17,18 +17,18 @@ public:
     ResourceBuilder<T>(const std::shared_ptr<Engine>& engine) : engine(engine) {}
 
     // Actually creates the resource to be built.
-    virtual T build() = 0;
+    virtual T build(const std::string& name) = 0;
 
     // Creates a unique pointer to a resource.
-    std::unique_ptr<T> buildUnique()
+    std::unique_ptr<T> buildUnique(const std::string& name)
     {
-        return std::make_unique<T>(build());
+        return std::make_unique<T>(build(name));
     }
 
     // Creates a shared pointer to a resource.
-    std::shared_ptr<T> buildShared()
+    std::shared_ptr<T> buildShared(const std::string& name)
     {
-        return std::make_shared<T>(build());
+        return std::make_shared<T>(build(name));
     }
 
     // Delete move operations - builders should not be stored.

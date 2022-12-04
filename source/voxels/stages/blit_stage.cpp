@@ -10,7 +10,7 @@
 
 BlitStage::BlitStage(const std::shared_ptr<Engine>& engine, const std::shared_ptr<VoxelRenderSettings>& settings, const RenderPass& renderPass) : AVoxelRenderStage(engine, settings)
 {
-    _offsetsBuffer = std::make_unique<Buffer>(engine, sizeof(BlitOffsets), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    _offsetsBuffer = std::make_unique<Buffer>(engine, sizeof(BlitOffsets), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU, "Blit Offsets Buffer");
     _offsetsBuffer->copyData(&_offsets, sizeof(BlitOffsets));
 
     _pipeline = std::make_unique<BlitPipeline>(BlitPipeline::build(engine, renderPass.renderPass));

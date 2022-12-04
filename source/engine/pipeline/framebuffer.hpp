@@ -50,5 +50,5 @@ public:
     FramebufferBuilder& depthStencil(vk::ImageView imageView);
 
     // Builds the render pass.
-    Framebuffer build() override;
+    Framebuffer build(const std::string& name) override;
 };

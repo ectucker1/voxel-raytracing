@@ -17,6 +17,6 @@ private:
 
 public:
     Buffer::Buffer(const std::shared_ptr<Engine>& engine,
-                   size_t size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+                   size_t size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage, const std::string& name);
     void copyData(void* data, size_t size) const;
 };

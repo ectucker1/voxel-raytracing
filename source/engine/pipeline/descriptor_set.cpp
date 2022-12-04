@@ -1,6 +1,7 @@
 #include "descriptor_set.hpp"
 
 #include "engine/engine.hpp"
+#include "engine/debug_marker.hpp"
 
 const vk::DescriptorSet* DescriptorSet::getSet(uint32_t frame) const
 {
@@ -79,7 +80,7 @@ DescriptorSetBuilder& DescriptorSetBuilder::image(uint32_t binding, vk::ShaderSt
     return *this;
 }
 
-DescriptorSet DescriptorSetBuilder::build()
+DescriptorSet DescriptorSetBuilder::build(const std::string& name)
 {
     DescriptorSet descriptorSet(engine);
 
@@ -110,6 +111,8 @@ DescriptorSet DescriptorSetBuilder::build()
     descriptorSet.sets = ResourceRing<vk::DescriptorSet>::fromFunc(MAX_FRAMES_IN_FLIGHT, [&](size_t i) {
         return sceneDescriptorAllocResult[i];
     });
+
+    DebugMarker::setObjectName(engine->device, (VkDescriptorSet)descriptorSet.sets[0], name);
 
     return descriptorSet;
 }

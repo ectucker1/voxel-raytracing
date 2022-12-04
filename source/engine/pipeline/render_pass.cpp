@@ -2,6 +2,7 @@
 
 #include "engine/engine.hpp"
 #include "engine/pipeline/framebuffer.hpp"
+#include "engine/debug_marker.hpp"
 
 void RenderPass::recordBegin(const vk::CommandBuffer& cmd, const Framebuffer& framebuffer) const
 {
@@ -68,7 +69,7 @@ RenderPassBuilder& RenderPassBuilder::depthStencil(uint32_t attachment, vk::Form
     return *this;
 }
 
-RenderPass RenderPassBuilder::build()
+RenderPass RenderPassBuilder::build(const std::string& name)
 {
     RenderPass renderPass(engine);
 
@@ -101,6 +102,8 @@ RenderPass RenderPassBuilder::build()
     renderPass.defaultClears.insert(renderPass.defaultClears.end(), colorClears.begin(), colorClears.end());
     if (depthStencilClear.has_value())
         renderPass.defaultClears.push_back(depthStencilClear.value());
+
+    DebugMarker::setObjectName(engine->device, (VkRenderPass)renderPass.renderPass, name);
 
     return renderPass;
 }

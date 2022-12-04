@@ -62,7 +62,7 @@ vk::PipelineLayoutCreateInfo DenoiserPipeline::buildPipelineLayout()
         .buffer(3, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
         .buffer(4, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
         .buffer(5, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
-        .build();
+        .build("Denoiser Descriptor Set");
     descriptorSet = localDescriptorSet;
     pushDeletor([=](const std::shared_ptr<Engine>&) {
         localDescriptorSet.destroy();

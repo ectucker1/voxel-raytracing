@@ -12,7 +12,7 @@ Texture3D::Texture3D(const std::shared_ptr<Engine>& engine,
     vk::DeviceSize imageSize = width * height * depth * pixelSize;
 
     // Create CPU-side buffer to hold data
-    Buffer stagingBuffer(engine, imageSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+    Buffer stagingBuffer(engine, imageSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY, "Texture3D Buffer");
 
     // Copy data to buffer
     stagingBuffer.copyData(imageData, static_cast<size_t>(imageSize));

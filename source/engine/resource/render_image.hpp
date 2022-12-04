@@ -21,5 +21,5 @@ private:
 
 public:
     RenderImage(const std::shared_ptr<Engine>& engine, uint32_t width, uint32_t height,
-                vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspect);
+                vk::Format format, vk::ImageUsageFlags usage, vk::ImageAspectFlags aspect, const std::string& name);
 };

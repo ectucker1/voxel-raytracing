@@ -1,6 +1,7 @@
 #include "framebuffer.hpp"
 
 #include "engine/engine.hpp"
+#include "engine/debug_marker.hpp"
 
 FramebufferBuilder& FramebufferBuilder::color(vk::ImageView imageView)
 {
@@ -16,7 +17,7 @@ FramebufferBuilder& FramebufferBuilder::depthStencil(vk::ImageView imageView)
     return *this;
 }
 
-Framebuffer FramebufferBuilder::build()
+Framebuffer FramebufferBuilder::build(const std::string& name)
 {
     Framebuffer framebuffer(engine);
     framebuffer.size = size;
@@ -41,6 +42,8 @@ Framebuffer FramebufferBuilder::build()
     framebuffer.pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
         delEngine->device.destroy(createdFramebuffer);
     });
+
+    DebugMarker::setObjectName(engine->device, (VkFramebuffer)createdFramebuffer, name);
 
     return framebuffer;
 }

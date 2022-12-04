@@ -49,7 +49,7 @@ Texture2D::Texture2D(const std::shared_ptr<Engine>& engine,
     vk::DeviceSize imageSize = width * height * formatSize(imageFormat);
 
     // Create CPU-side buffer to hold data
-    Buffer stagingBuffer(engine, imageSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+    Buffer stagingBuffer(engine, imageSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY, "Texture2D Staging Buffer");
 
     // Copy data to buffer
     stagingBuffer.copyData(pixels, static_cast<size_t>(imageSize));

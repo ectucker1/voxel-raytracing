@@ -57,5 +57,5 @@ public:
     RenderPassBuilder& depthStencil(uint32_t attachment, vk::Format format, float depthClear, uint32_t stencilClear);
 
     // Builds the render pass.
-    RenderPass build() override;
+    RenderPass build(const std::string& name) override;
 };

@@ -57,5 +57,5 @@ public:
     DescriptorSetBuilder& image(uint32_t binding, vk::ShaderStageFlags stages);
 
     // Builds the descriptor set.
-    DescriptorSet build() override;
+    DescriptorSet build(const std::string& name) override;
 };

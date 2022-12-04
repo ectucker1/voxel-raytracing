@@ -48,7 +48,7 @@ UpscalerStage::UpscalerStage(const std::shared_ptr<Engine>& engine, const std::s
 
     engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE | RecreationEventFlags::TARGET_RESIZE, [&]() {
         _target = std::make_unique<RenderImage>(engine, settings->targetResolution.x, settings->targetResolution.y, vk::Format::eR8G8B8A8Unorm,
-                                     vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor);
+                                     vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Upscaler Target");
 
         return [=](const std::shared_ptr<Engine>&) {
             _target->destroy();

@@ -58,7 +58,7 @@ vk::PipelineLayoutCreateInfo BlitPipeline::buildPipelineLayout()
     auto localDescriptorSet = DescriptorSetBuilder(engine)
         .image(0, vk::ShaderStageFlagBits::eFragment)
         .buffer(1, vk::ShaderStageFlagBits::eFragment, vk::DescriptorType::eUniformBuffer)
-        .build();
+        .build("Blit Descriptor Set");
     descriptorSet = localDescriptorSet;
     pushDeletor([=](const std::shared_ptr<Engine>&) {
         localDescriptorSet.destroy();

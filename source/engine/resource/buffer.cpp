@@ -1,9 +1,10 @@
 #include "buffer.hpp"
 
 #include "engine/engine.hpp"
+#include "engine/debug_marker.hpp"
 
 Buffer::Buffer(const std::shared_ptr<Engine>& engine,
-               size_t size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+               size_t size, vk::BufferUsageFlags usage, VmaMemoryUsage memoryUsage, const std::string& name)
                : AResource(engine), size(size)
 {
     vk::BufferCreateInfo bufferInfo = {};
@@ -18,6 +19,8 @@ Buffer::Buffer(const std::shared_ptr<Engine>& engine,
     auto res = vmaCreateBuffer(engine->allocator, &bufferInfoC, &allocInfo, &outBufferC, &allocation, nullptr);
     vk::resultCheck(vk::Result(res), "Error creating buffer");
     buffer = outBufferC;
+
+    DebugMarker::setObjectName(engine->device, (VkBuffer)buffer, name);
 
     vk::Buffer localBuffer = buffer;
     VmaAllocation localAllocation = allocation;
