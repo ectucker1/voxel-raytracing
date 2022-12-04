@@ -90,7 +90,7 @@ void VoxelRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint3
         engine->swapchain.images[swapchainImage],
         vk::AccessFlagBits::eColorAttachmentWrite,
         vk::AccessFlagBits::eNone,
-        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
         vk::ImageLayout::ePresentSrcKHR,
         vk::PipelineStageFlagBits::eColorAttachmentOutput,
         vk::PipelineStageFlagBits::eBottomOfPipe,

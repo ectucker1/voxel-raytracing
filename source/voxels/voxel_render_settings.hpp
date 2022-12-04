@@ -43,7 +43,7 @@ struct LightSettings
 class VoxelRenderSettings
 {
 public:
-    glm::uvec2 targetResolution = { 3840, 2160 };
+    glm::uvec2 targetResolution = { 1920, 1080 };
 
     FsrSettings fsrSetttings = {};
     DenoiserSettings denoiserSettings = {};

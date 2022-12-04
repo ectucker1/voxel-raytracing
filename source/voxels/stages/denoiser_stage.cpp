@@ -88,8 +88,10 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
     });
 
     engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
-        _colorTargets = ResourceRing<RenderImage>::fromArgs(2, engine, _settings->renderResolution().x, _settings->renderResolution().y, vk::Format::eR8G8B8A8Unorm,
-                                                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, "Denoiser Target");
+        _colorTargets = ResourceRing<RenderImage>::fromFunc(2, [&](int i) {
+            return RenderImage(engine, _settings->renderResolution().x, _settings->renderResolution().y, vk::Format::eR8G8B8A8Unorm,
+                               vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::ImageAspectFlagBits::eColor, fmt::format("Denoiser Target {}", i));
+        });
 
         return [=](const std::shared_ptr<Engine>&) {
             _colorTargets.destroy([&](const RenderImage& image) {
@@ -203,7 +205,7 @@ const RenderImage& DenoiserStage::record(const vk::CommandBuffer& cmd, uint32_t 
     {
         int ping = i % 2;
 
-        if (i != 0)
+        if (i > 1)
         {
             cmdutil::imageMemoryBarrier(
                 cmd,

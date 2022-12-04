@@ -20,7 +20,8 @@ namespace DebugMarker
             { std::type_index(typeid(VkImage)), vk::ObjectType::eImage },
             { std::type_index(typeid(VkImageView)), vk::ObjectType::eImageView },
             { std::type_index(typeid(VkSampler)), vk::ObjectType::eSampler },
-            { std::type_index(typeid(VkBuffer)), vk::ObjectType::eBuffer }
+            { std::type_index(typeid(VkBuffer)), vk::ObjectType::eBuffer },
+            { std::type_index(typeid(VkDescriptorSet)), vk::ObjectType::eDescriptorSet }
         };
 
         setObjectName(device, reinterpret_cast<uint64_t>(object), objectMap[typeid(T)], name);

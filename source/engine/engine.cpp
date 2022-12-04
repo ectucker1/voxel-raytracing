@@ -215,10 +215,10 @@ void Engine::initVulkan() {
 
     // Select physical device (GPU)
     VkPhysicalDeviceFeatures required10Features = {};
-    required10Features.shaderInt16 = true;
+    //required10Features.shaderInt16 = true;
     VkPhysicalDeviceVulkan11Features required11Features = {};
     VkPhysicalDeviceVulkan12Features required12Features = {};
-    required12Features.shaderFloat16 = true;
+    //required12Features.shaderFloat16 = true;
     vkb::PhysicalDeviceSelector physicalDeviceSelector(vkbInstance);
     auto physicalDeviceResult = physicalDeviceSelector
         .set_minimum_version(1, 1)
