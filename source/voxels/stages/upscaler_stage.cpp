@@ -114,12 +114,12 @@ const RenderImage& UpscalerStage::record(const vk::CommandBuffer& cmd,
     cmdutil::imageMemoryBarrier(
         cmd,
         _target->image,
-        vk::AccessFlagBits::eNone,
-        vk::AccessFlagBits::eMemoryRead,
+        vk::AccessFlagBits::eShaderRead,
+        vk::AccessFlagBits::eShaderWrite,
         vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eShaderReadOnlyOptimal,
-        vk::PipelineStageFlagBits::eBottomOfPipe,
-        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::ImageLayout::eGeneral,
+        vk::PipelineStageFlagBits::eFragmentShader,
+        vk::PipelineStageFlagBits::eComputeShader,
         vk::ImageAspectFlagBits::eColor);
 
     FfxFsr2DispatchDescription dispatchDescription = {};
@@ -160,11 +160,11 @@ const RenderImage& UpscalerStage::record(const vk::CommandBuffer& cmd,
     cmdutil::imageMemoryBarrier(
         cmd,
         _target->image,
-        vk::AccessFlagBits::eMemoryWrite,
+        vk::AccessFlagBits::eShaderWrite,
         vk::AccessFlagBits::eShaderRead,
-        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eGeneral,
         vk::ImageLayout::eShaderReadOnlyOptimal,
-        vk::PipelineStageFlagBits::eBottomOfPipe,
+        vk::PipelineStageFlagBits::eComputeShader,
         vk::PipelineStageFlagBits::eFragmentShader,
         vk::ImageAspectFlagBits::eColor);
 

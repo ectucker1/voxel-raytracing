@@ -99,9 +99,9 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
     });
 
     engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
-        _renderPasses = ResourceRing<RenderPass>::fromFunc(2, [&](uint32_t i) {
+        _renderPasses = ResourceRing<RenderPass>::fromFunc(10, [&](uint32_t i) {
             return RenderPassBuilder(engine)
-                .color(0, _colorTargets[i].format, glm::vec4(0.0f))
+                .color(0, _colorTargets[i % 2].format, glm::vec4(0.0f))
                 .build(fmt::format("Denoiser Iteration Render Pass {}", i));
         });
 
@@ -113,9 +113,9 @@ DenoiserStage::DenoiserStage(const std::shared_ptr<Engine>& engine, const std::s
     });
 
     engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
-        _framebuffers = ResourceRing<Framebuffer>::fromFunc(2, [&](uint32_t n) {
+        _framebuffers = ResourceRing<Framebuffer>::fromFunc(10, [&](uint32_t n) {
             return FramebufferBuilder(engine, _renderPasses[n].renderPass, _settings->renderResolution())
-                .color(_colorTargets[n].imageView)
+                .color(_colorTargets[n % 2].imageView)
                 .build("Denoiser Iteration Framebuffer");
         });
 
@@ -176,10 +176,46 @@ const RenderImage& DenoiserStage::record(const vk::CommandBuffer& cmd, uint32_t 
         vk::PipelineStageFlagBits::eFragmentShader,
         vk::ImageAspectFlagBits::eColor);
 
+    cmdutil::imageMemoryBarrier(
+        cmd,
+        _colorTargets[0].image,
+        vk::AccessFlagBits::eNone,
+        vk::AccessFlagBits::eColorAttachmentWrite,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::ImageAspectFlagBits::eColor);
+
+    cmdutil::imageMemoryBarrier(
+        cmd,
+        _colorTargets[1].image,
+        vk::AccessFlagBits::eNone,
+        vk::AccessFlagBits::eColorAttachmentWrite,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::ImageAspectFlagBits::eColor);
+
     int lastOutput = 0;
     for (int i = 0; i < _settings->denoiserSettings.iterations; i++)
     {
         int ping = i % 2;
+
+        if (i != 0)
+        {
+            cmdutil::imageMemoryBarrier(
+                cmd,
+                _colorTargets[ping].image,
+                vk::AccessFlagBits::eShaderRead,
+                vk::AccessFlagBits::eColorAttachmentWrite,
+                vk::ImageLayout::eShaderReadOnlyOptimal,
+                vk::ImageLayout::eColorAttachmentOptimal,
+                vk::PipelineStageFlagBits::eFragmentShader,
+                vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                vk::ImageAspectFlagBits::eColor);
+        }
 
         // Use color input on first iteration, last denoiser pass otherwise
         if (i == 0)
@@ -193,7 +229,7 @@ const RenderImage& DenoiserStage::record(const vk::CommandBuffer& cmd, uint32_t 
         _iterationDescriptors[i].writeBuffer(3, flightFrame, _iterationParamsBuffers[i].buffer, _iterationParamsBuffers[i].size, vk::DescriptorType::eUniformBuffer);
 
         // Start denoise renderpass
-        _renderPasses[ping].recordBegin(cmd, _framebuffers[ping]);
+        _renderPasses[i].recordBegin(cmd, _framebuffers[i]);
         cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->pipeline);
         cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipeline->layout,
            0, 1,

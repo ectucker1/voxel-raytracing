@@ -21,7 +21,7 @@ struct FsrSettings
 struct DenoiserSettings
 {
     bool enable = true;
-    int iterations = 3;
+    int iterations = 2;
     float phiColor0 = 20.4f;
     float phiNormal0 = 1E-2f;
     float phiPos0 = 1E-1f;
