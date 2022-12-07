@@ -181,15 +181,21 @@ void Engine::initVulkan() {
     getDeviceProcAddr = dl.getProcAddress<PFN_vkGetDeviceProcAddr>("vkGetDeviceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(getInstanceProcAddr);
 
+    bool debug = false;
+
     // Create Vulkan instance
     vkb::InstanceBuilder instanceBuilder;
-    auto instanceResult = instanceBuilder
+    instanceBuilder = instanceBuilder
         .set_app_name("Voxel Engine")
-        .request_validation_layers(true)
-        .require_api_version(1, 2, 0)
-        .use_default_debug_messenger()
-        .enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
-        .build();
+        .require_api_version(1, 2, 0);
+    if (debug)
+    {
+        instanceBuilder = instanceBuilder
+            .request_validation_layers(true)
+            .use_default_debug_messenger()
+            .enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+    auto instanceResult = instanceBuilder.build();
     if (!instanceResult) {
         throw std::runtime_error(fmt::format("Failed to create Vulkan instance. Error: {}", instanceResult.error().message()));
     }
