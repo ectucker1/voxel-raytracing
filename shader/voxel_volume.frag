@@ -30,9 +30,18 @@ struct Material
     float pad3;
 };
 
+struct RayHitInternal
+{
+    vec3 pos;
+    uint material;
+    ivec3 rayStep;
+    bvec3 mask;
+    vec3 sideDist;
+    vec3 deltaDist;
+};
+
 struct RayHit
 {
-    bool hit;
     uint material;
     vec3 pos;
     vec3 normal;
@@ -95,6 +104,7 @@ vec4 skyColor(vec3 rayDir)
 }
 
 // Calculate the point where a ray intersects the scene box
+// Design inspired by https://tavianator.com/2011/ray_box.html
 vec3 boxIntersection(vec3 start, vec3 dir) {
     vec3 invDir = 1.0 / dir;
 
@@ -113,33 +123,31 @@ vec3 boxIntersection(vec3 start, vec3 dir) {
     }
 }
 
-RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
+RayHitInternal traceRayInt(vec3 start, vec3 dir, uint maxSteps)
 {
+    RayHitInternal result;
+
     // Ray starting position
-    vec3 pos = boxIntersection(start, dir);
+    result.pos = boxIntersection(start, dir);
 
     // First voxel to sample
-    ivec3 mapPos = ivec3(floor(pos));
+    ivec3 mapPos = ivec3(floor(result.pos));
 
     // Portion of ray needed for ray to traverse a voxel in each direction
-    vec3 deltaDist = abs(1.0 / dir);
+    result.deltaDist = abs(1.0 / dir);
 
     // Integer position steps along ray
-    ivec3 rayStep = ivec3(sign(dir));
+    result.rayStep = ivec3(sign(dir));
 
     // Distance ray can travel in each direction before crossing a boundary
-    vec3 sideDist = (sign(dir) * (vec3(mapPos) - pos) + (sign(dir) * 0.5) + 0.5) * deltaDist;
+    result.sideDist = (sign(dir) * (vec3(mapPos) - result.pos) + (sign(dir) * 0.5) + 0.5) * result.deltaDist;
 
-    RayHit result;
-    result.dir = dir;
-    result.hit = false;
-    bvec3 mask;
     for (uint i = 0; i < maxSteps; i++)
     {
         // If we're out of bounds, break
         if (mapPos.x < 0 || mapPos.x >= pushConstants.volumeBounds.x
-            || mapPos.y < 0 || mapPos.y >= pushConstants.volumeBounds.y
-            || mapPos.z < 0 || mapPos.z >= pushConstants.volumeBounds.z)
+        || mapPos.y < 0 || mapPos.y >= pushConstants.volumeBounds.y
+        || mapPos.z < 0 || mapPos.z >= pushConstants.volumeBounds.z)
         {
             break;
         }
@@ -148,28 +156,48 @@ RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
         result.material = getVoxel(mapPos);
         if (result.material != 0)
         {
-            result.hit = true;
             break;
         }
 
         // Determine which direction has minimum travel distance before hitting a boundary
-        mask = lessThanEqual(sideDist.xyz, min(sideDist.yzx, sideDist.zxy));
+        result.mask = lessThanEqual(result.sideDist.xyz, min(result.sideDist.yzx, result.sideDist.zxy));
 
         // Advance the distance needed for that axis
-        sideDist += vec3(mask) * deltaDist;
+        result.sideDist += vec3(result.mask) * result.deltaDist;
 
         // Advance the integer map positon
-        mapPos += ivec3(vec3(mask)) * rayStep;
+        mapPos += ivec3(vec3(result.mask)) * result.rayStep;
     }
 
-    // Calculate normal direction from final mask
-    result.normal = normalize(vec3(mask) * -vec3(rayStep));
+    return result;
+}
 
-    // Calculate the ending position from distance traveled
-    float d = length(vec3(mask) * (sideDist - deltaDist));
-    result.pos = pos + d * dir;
+RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
+{
+    // Internal trace, common between this and simplified versions
+    RayHitInternal interal = traceRayInt(start, dir, maxSteps);
+
+    RayHit result;
+    result.material = interal.material;
+    result.dir = dir;
+
+    if (result.material != 0)
+    {
+        // Calculate normal direction from final mask
+        result.normal = normalize(vec3(interal.mask) * -vec3(interal.rayStep));
+
+        // Calculate the ending position from distance traveled
+        float d = length(vec3(interal.mask) * (interal.sideDist - interal.deltaDist));
+        result.pos = interal.pos + d * dir;
+    }
 
     return result;
+}
+
+bool traceRayHit(vec3 start, vec3 dir, uint maxSteps)
+{
+    RayHitInternal interal = traceRayInt(start, dir, maxSteps);
+    return interal.material != 0;
 }
 
 // Take ambient occlusion samples and calculate a total ambient occlusion factor
@@ -184,9 +212,9 @@ vec3 calcAmbient(RayHit hit, uint depth)
         // Generate a random direction around the normal
         vec3 dir = hit.normal + randomDir(i + depth * aoSamples);
         // Trace ray
-        RayHit hit = traceRay(hit.pos + dir * 0.01, dir, 64);
+        bool hit = traceRayHit(hit.pos + dir * 0.01, dir, 64);
         // Add ambient color if hit
-        if (!hit.hit)
+        if (hit)
             ambient += sampleFrac;
     }
 
@@ -196,8 +224,7 @@ vec3 calcAmbient(RayHit hit, uint depth)
 // Cast a ray and determine if the given hit is in the shadows
 bool isShadowed(RayHit hit)
 {
-    RayHit shadowHit = traceRay(hit.pos + hit.normal * 0.01, lightDir, MAX_RAY_STEPS);
-    return shadowHit.hit;
+    return traceRayHit(hit.pos + hit.normal * 0.01, lightDir, MAX_RAY_STEPS);
 }
 
 // Calculate final material color using blending parameters
@@ -219,7 +246,7 @@ vec3 color(vec3 normal, Material mat, vec3 ambient, vec3 reflection, bool shadow
 // Color a ray hit using the previously calculated reflection color
 vec3 colorHit(RayHit hit, vec3 reflection, uint depth)
 {
-    if (hit.hit)
+    if (hit.material != 0)
     {
         vec3 ambient = calcAmbient(hit, depth);
         bool shadowed = isShadowed(hit);
@@ -257,7 +284,7 @@ vec3 colorMainRay(RayHit hit)
             lastHit = reflectHit;
 
             // Terminate early if material isn't metallic or we hit sky
-            if (!lastHit.hit || materials[lastHit.material].metallic <= 0)
+            if (lastHit.material == 0 || materials[lastHit.material].metallic <= 0)
             {
                 lastIdx = i;
                 break;
@@ -295,7 +322,7 @@ void main()
     // Trace the ray
     RayHit result = traceRay(rayStart, rayDir, MAX_RAY_STEPS);
 
-    if (result.hit)
+    if (result.material != 0)
     {
         outColor.rgb = colorMainRay(result).rgb;
         outDepth = length(result.pos - pushConstants.camPos.xyz);
