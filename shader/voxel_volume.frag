@@ -308,9 +308,6 @@ vec3 colorMainRay(RayHit hit)
 
 void main()
 {
-    // Last frame's position
-    vec3 lastPos = texture(oldPos, vScreenPos).xyz;
-
     // Screen position from -1.0 to 1.0
     vec2 screenPos = vScreenPos * 2.0 - 1.0;
 
@@ -346,6 +343,4 @@ void main()
         outPos = result.pos;
         outNormal = vec3(0, 0, 0);
     }
-
-    //outColor.rgb = boxIntersection(rayStart, rayDir) / 16.0;
 }

@@ -39,7 +39,7 @@ foreach(source IN LISTS SHADER_SOURCES)
     add_custom_command(
         COMMAND
             ${glslc_executable}
-            -MD -MF ${FILENAME}.d
+            -O -MD -MF ${FILENAME}.d
             -o ${SHADER_BINARY_DIR}/${FILENAME}.spv ${source}
         OUTPUT ${SHADER_BINARY_DIR}/${FILENAME}.spv
         DEPENDS ${FILENAME} ${SHADER_BINARY_DIR}
