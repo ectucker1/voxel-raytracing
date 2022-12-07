@@ -33,11 +33,11 @@ struct Material
 struct RayHitInternal
 {
     vec3 pos;
-    uint material;
-    ivec3 rayStep;
-    bvec3 mask;
     vec3 sideDist;
     vec3 deltaDist;
+    ivec3 rayStep;
+    uint material;
+    bvec3 mask;
 };
 
 struct RayHit
@@ -205,17 +205,21 @@ vec3 calcAmbient(RayHit hit, uint depth)
 {
     float ambient = 0.0;
 
-    // For each ambient occulsion sample
-    float sampleFrac = 1.0f / aoSamples;
-    for (uint i = 0; i < aoSamples; i++)
-    {
-        // Generate a random direction around the normal
-        vec3 dir = hit.normal + randomDir(i + depth * aoSamples);
-        // Trace ray
-        bool hit = traceRayHit(hit.pos + dir * 0.01, dir, 64);
-        // Add ambient color if hit
-        if (hit)
+    if (aoSamples == 0) {
+        ambient = 1.0;
+    } else {
+        // For each ambient occulsion sample
+        float sampleFrac = 1.0f / aoSamples;
+        for (uint i = 0; i < aoSamples; i++)
+        {
+            // Generate a random direction around the normal
+            vec3 dir = hit.normal + randomDir(i + depth * aoSamples);
+            // Trace ray
+            bool hit = traceRayHit(hit.pos + dir * 0.01, dir, 64);
+            // Add ambient color if hit
+            if (hit)
             ambient += sampleFrac;
+        }
     }
 
     return ambient * skyColor(hit.normal).rgb;

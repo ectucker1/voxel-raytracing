@@ -110,7 +110,7 @@ RecreationEventFlags VoxelSettingsGui::draw(const std::shared_ptr<VoxelRenderSet
 
     if (ImGui::CollapsingHeader("Ambient Occlusion", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::SliderInt("Occlusion Samples", &settings->occlusionSettings.numSamples, 1, 16);
+        ImGui::SliderInt("Occlusion Samples", &settings->occlusionSettings.numSamples, 0, 16);
     }
 
     if (ImGui::CollapsingHeader("Directional Light"), ImGuiTreeNodeFlags_DefaultOpen)
