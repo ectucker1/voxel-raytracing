@@ -121,6 +121,7 @@ GeometryBuffer GeometryStage::record(const vk::CommandBuffer& cmd, uint32_t flig
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline->pipeline);
     // Set parameters buffer
     _parameters.aoSamples = _settings->occlusionSettings.numSamples;
+    _parameters.ambientIntensity = _settings->occlusionSettings.intensity;
     _parametersBuffer->copyData(&_parameters, sizeof(VolumeParameters));
     Light light = {};
     light.intensity = _settings->lightSettings.intensity;

@@ -56,6 +56,7 @@ layout (set = 0, binding = 2) uniform sampler2D blueNoise;
 layout (set = 0, binding = 3) uniform sampler2D oldPos;
 layout (set = 0, binding = 4) uniform Parameters {
     uint aoSamples;
+    float ambientIntensity;
 };
 layout (set = 0, binding = 5) uniform Light {
     vec3 lightDir;
@@ -222,7 +223,7 @@ vec3 calcAmbient(RayHit hit, uint depth)
         }
     }
 
-    return ambient * skyColor(hit.normal).rgb;
+    return ambient * ambientIntensity * skyColor(hit.normal).rgb;
 }
 
 // Cast a ray and determine if the given hit is in the shadows

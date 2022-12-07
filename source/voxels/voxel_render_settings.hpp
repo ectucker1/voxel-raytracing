@@ -31,6 +31,7 @@ struct DenoiserSettings
 struct AmbientOcclusionSettings
 {
     int numSamples = 4;
+    float intensity = 1.0f;
 };
 
 struct LightSettings

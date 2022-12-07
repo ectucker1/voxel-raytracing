@@ -5,6 +5,7 @@
 struct VolumeParameters
 {
     uint32_t aoSamples = 4;
+    float ambientIntensity = 1.0f;
 };
 
 struct BlitOffsets
