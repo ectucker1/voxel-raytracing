@@ -62,8 +62,6 @@ const uvec2 NOISE_SIZE = uvec2(512, 512);
 // Scene definition from volume
 uint getVoxel(ivec3 pos)
 {
-    if (pos.x > pushConstants.volumeBounds.x || pos.y > pushConstants.volumeBounds.y || pos.z > pushConstants.volumeBounds.z || pos.x < 0 || pos.y < 0 || pos.z < 0)
-        return 0;
     uint val = texture(scene, vec3(pos) / vec3(pushConstants.volumeBounds)).r;
     return val;
 }
@@ -96,11 +94,29 @@ vec4 skyColor(vec3 rayDir)
     return texture(skybox, uv);
 }
 
+// Calculate the point where a ray intersects the scene box
+vec3 boxIntersection(vec3 start, vec3 dir) {
+    vec3 invDir = 1.0 / dir;
+
+    vec3 t1 = (-start) * invDir;
+    vec3 t2 = (vec3(pushConstants.volumeBounds) - start) * invDir;
+    vec3 tminDir = min(t1, t2);
+    vec3 tmaxDir = max(t1, t2);
+
+    float tmin = max(tminDir.x, max(tminDir.y, tminDir.z));
+    float tmax = min(tmaxDir.x, min(tmaxDir.y, tmaxDir.z));
+
+    if (tmin >= 0 && tmax >= tmin) {
+        return start + (tmin + 0.1) * dir;
+    } else {
+        return start;
+    }
+}
+
 RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
 {
     // Ray starting position
-    // TODO initial ray positon from box intersection
-    vec3 pos = start;
+    vec3 pos = boxIntersection(start, dir);
 
     // First voxel to sample
     ivec3 mapPos = ivec3(floor(pos));
@@ -120,8 +136,15 @@ RayHit traceRay(vec3 start, vec3 dir, uint maxSteps)
     bvec3 mask;
     for (uint i = 0; i < maxSteps; i++)
     {
+        // If we're out of bounds, break
+        if (mapPos.x < 0 || mapPos.x >= pushConstants.volumeBounds.x
+            || mapPos.y < 0 || mapPos.y >= pushConstants.volumeBounds.y
+            || mapPos.z < 0 || mapPos.z >= pushConstants.volumeBounds.z)
+        {
+            break;
+        }
+
         // If we hit a voxel, break
-        // TODO terminate early if out of bounds
         result.material = getVoxel(mapPos);
         if (result.material != 0)
         {
@@ -291,4 +314,6 @@ void main()
         outPos = result.pos;
         outNormal = vec3(0, 0, 0);
     }
+
+    //outColor.rgb = boxIntersection(rayStart, rayDir) / 16.0;
 }
