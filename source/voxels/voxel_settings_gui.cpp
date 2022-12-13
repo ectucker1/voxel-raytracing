@@ -4,7 +4,9 @@
 #include <imgui.h>
 #include <cpp/imgui_stdlib.h>
 #include <fmt/format.h>
+#include <nfd.h>
 #include "voxels/voxel_renderer.hpp"
+#include <filesystem>
 
 const std::vector<FsrScaling> scalingOptions = {
     FsrScaling::NONE,
@@ -120,6 +122,38 @@ RecreationEventFlags VoxelSettingsGui::draw(const std::shared_ptr<VoxelRenderSet
         ImGui::ColorEdit4("Light Color", reinterpret_cast<float*>(&settings->lightSettings.color), ImGuiColorEditFlags_HDR);
         ImGui::SliderFloat("Light Intensity", &settings->lightSettings.intensity, 0.0f, 5.0f);
         settings->lightSettings.direction = glm::normalize(settings->lightSettings.direction);
+    }
+
+    if (ImGui::CollapsingHeader("Scene"), ImGuiTreeNodeFlags_DefaultOpen)
+    {
+        ImGui::LabelText("Scene", "%s", settings->voxPath.c_str());
+        if (ImGui::Button("Pick Scene"))
+        {
+            std::string absVox = std::filesystem::absolute(std::filesystem::relative(settings->voxPath)).string();
+            nfdchar_t* outPath = nullptr;
+            nfdresult_t result = NFD_OpenDialog("vox", absVox.c_str(), &outPath);
+
+            if (result == NFD_OKAY)
+            {
+                settings->voxPath = outPath;
+                free(outPath);
+                flags |= RecreationEventFlags::SCENE_PATH;
+            }
+        }
+        ImGui::LabelText("Skybox", "%s", settings->skyboxPath.c_str());
+        if (ImGui::Button("Pick Skybox"))
+        {
+            std::string absSkybox = std::filesystem::absolute(std::filesystem::relative(settings->skyboxPath)).string();
+            nfdchar_t* outPath = nullptr;
+            nfdresult_t result = NFD_OpenDialog("hdr", absSkybox.c_str(), &outPath);
+
+            if (result == NFD_OKAY)
+            {
+                settings->skyboxPath = outPath;
+                free(outPath);
+                flags |= RecreationEventFlags::SCENE_PATH;
+            }
+        }
     }
 
     ImGui::End();

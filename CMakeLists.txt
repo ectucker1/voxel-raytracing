@@ -27,6 +27,7 @@ conan_cmake_configure(
         catch2/2.13.9
         imgui/1.88
         bitflags/1.5.0
+        nativefiledialog/116
     GENERATORS
         cmake_find_package_multi
 )

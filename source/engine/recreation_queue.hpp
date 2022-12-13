@@ -13,6 +13,7 @@ BEGIN_BITFLAGS(RecreationEventFlags)
     FLAG(RENDER_RESIZE)
     FLAG(TARGET_RESIZE)
     FLAG(DENOISER_SETTINGS)
+    FLAG(SCENE_PATH)
 END_BITFLAGS(RecreationEventFlags)
 
 typedef std::function<void(const std::shared_ptr<Engine>& engine)> DeletorFunc;

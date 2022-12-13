@@ -19,10 +19,9 @@ VoxelRenderer::VoxelRenderer(const std::shared_ptr<Engine>& engine) : ARenderer(
 
     _camera = std::make_unique<CameraController>(engine, glm::vec3(8, 8, -50), 90.0f, 0.0f, static_cast<float>(1 / glm::tan(glm::radians(55.0f / 2))));
 
-    _scene = std::make_shared<VoxelScene>(engine, "../resource/treehouse.vox", "../resource/rustig_koppie.hdr");
     _noiseTexture = std::make_shared<Texture2D>(engine, "../resource/blue_noise_rgba.png", 4, vk::Format::eR8G8B8A8Unorm);
+    _scene = std::make_shared<VoxelScene>(engine, _settings->voxPath, _settings->skyboxPath);
 
-    // TODO initialize stages
     _geometryStage = std::make_unique<GeometryStage>(engine, _settings, _scene, _noiseTexture);
     _denoiserStage = std::make_unique<DenoiserStage>(engine, _settings);
     _upscalerStage = std::make_unique<UpscalerStage>(engine, _settings);
@@ -43,6 +42,12 @@ void VoxelRenderer::update(float delta)
     RecreationEventFlags flags = VoxelSettingsGui::draw(_settings);
     VoxelPerformanceGui::draw(delta);
     engine->recreationQueue->fire(flags);
+    if (flags & RecreationEventFlags::SCENE_PATH)
+    {
+        _scene = std::make_shared<VoxelScene>(engine, _settings->voxPath, _settings->skyboxPath);
+
+        _geometryStage = std::make_unique<GeometryStage>(engine, _settings, _scene, _noiseTexture);
+    }
 }
 
 void VoxelRenderer::recordCommands(const vk::CommandBuffer& commandBuffer, uint32_t swapchainImage, uint32_t flightFrame)

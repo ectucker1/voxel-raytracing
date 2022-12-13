@@ -15,7 +15,7 @@ struct Light
 };
 
 // A complete voxel scene, including the 3D scene texture and palette
-class VoxelScene : AResource
+class VoxelScene : public AResource
 {
 public:
     uint32_t width, height, depth;

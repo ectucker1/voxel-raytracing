@@ -51,6 +51,9 @@ public:
     AmbientOcclusionSettings occlusionSettings = {};
     LightSettings lightSettings = {};
 
+    std::string voxPath = "../resource/treehouse.vox";
+    std::string skyboxPath = "../resource/rustig_koppie.hdr";
+
 public:
     glm::uvec2 renderResolution() const;
 };
