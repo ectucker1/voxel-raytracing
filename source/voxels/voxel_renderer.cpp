@@ -44,8 +44,10 @@ void VoxelRenderer::update(float delta)
     engine->recreationQueue->fire(flags);
     if (flags & RecreationEventFlags::SCENE_PATH)
     {
+        _scene->destroy();
         _scene = std::make_shared<VoxelScene>(engine, _settings->voxPath, _settings->skyboxPath);
 
+        _geometryStage->destroy();
         _geometryStage = std::make_unique<GeometryStage>(engine, _settings, _scene, _noiseTexture);
     }
 }

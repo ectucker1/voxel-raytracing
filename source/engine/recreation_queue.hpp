@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <bitflags/bitflags.hpp>
+#include "util/id_generator.hpp"
 
 class Engine;
 
@@ -25,10 +26,12 @@ typedef std::function<DeletorFunc()> CreatorFunc;
 class RecreationQueue
 {
 private:
+    IdGenerator _recreatorIdGen;
+
     std::shared_ptr<Engine> engine;
 
-    std::vector<std::pair<RecreationEventFlags, CreatorFunc>> _creators;
-    std::vector<std::pair<RecreationEventFlags, DeletorFunc>> _deletors;
+    std::vector<std::tuple<uint32_t, RecreationEventFlags, CreatorFunc>> _creators;
+    std::vector<std::tuple<uint32_t, RecreationEventFlags, DeletorFunc>> _deletors;
 
 public:
     explicit RecreationQueue(const std::shared_ptr<Engine>& engine);
@@ -37,7 +40,9 @@ public:
     // This will be called immediately, and then again each time fire is called.
     // The creator func may use reference capture ([&]),
     // but the deletor it returns must use value ([=]).
-    void push(RecreationEventFlags flags, const CreatorFunc& creator);
+    uint32_t push(RecreationEventFlags flags, const CreatorFunc& creator);
+
+    void remove(uint32_t id);
 
     // Calls all deletors with the given flags, and then calls their corresponding creators.
     void fire(RecreationEventFlags flags);

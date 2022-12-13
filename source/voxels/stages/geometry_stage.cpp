@@ -16,7 +16,7 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
     _parametersBuffer = std::make_unique<Buffer>(engine, sizeof(VolumeParameters), vk::BufferUsageFlagBits::eUniformBuffer, VMA_MEMORY_USAGE_CPU_TO_GPU, "G-Pass Parameters Buffer");
     _parametersBuffer->copyData(&_parameters, sizeof(VolumeParameters));
 
-    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
+    uint32_t recreatorId = engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
         glm::uvec2 renderRes = settings->renderResolution();
 
         _colorTarget = std::make_unique<RenderImage>(engine, renderRes.x, renderRes.y, vk::Format::eR8G8B8A8Unorm,
@@ -43,8 +43,11 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
             _normalTarget->destroy();
         };
     });
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->recreationQueue->remove(recreatorId);
+    });
 
-    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
+    recreatorId = engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
         _renderPass = RenderPassBuilder(engine)
             .color(0, _colorTarget->format, glm::vec4(0.0))
             .color(1, _depthTarget->format, glm::vec4(0.0))
@@ -58,8 +61,11 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
             _renderPass->destroy();
         };
     });
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->recreationQueue->remove(recreatorId);
+    });
 
-    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
+    recreatorId = engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
         _framebuffers = ResourceRing<Framebuffer>::fromFunc(2, [&](uint32_t n) {
             return FramebufferBuilder(engine, _renderPass->renderPass, settings->renderResolution())
                 .color(_colorTarget->imageView)
@@ -77,10 +83,13 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
             });
         };
     });
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->recreationQueue->remove(recreatorId);
+    });
 
     _pipeline = std::make_unique<VoxelSDFPipeline>(VoxelSDFPipeline::build(engine, _renderPass->renderPass));
 
-    engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
+    recreatorId = engine->recreationQueue->push(RecreationEventFlags::RENDER_RESIZE, [&]() {
         _pipeline->descriptorSet->initImage(0, scene->sceneTexture->imageView, scene->sceneTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
         _pipeline->descriptorSet->initBuffer(1, scene->paletteBuffer->buffer, scene->paletteBuffer->size, vk::DescriptorType::eUniformBuffer);
         _pipeline->descriptorSet->initImage(2, noise->imageView, noise->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -88,6 +97,9 @@ GeometryStage::GeometryStage(const std::shared_ptr<Engine>& engine, const std::s
         _pipeline->descriptorSet->initImage(6, scene->skyboxTexture->imageView, scene->skyboxTexture->sampler, vk::ImageLayout::eShaderReadOnlyOptimal);
 
         return [=](const std::shared_ptr<Engine>&) {};
+    });
+    pushDeletor([=](const std::shared_ptr<Engine>& delEngine) {
+        delEngine->recreationQueue->remove(recreatorId);
     });
 }
 
